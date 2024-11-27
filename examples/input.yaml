@@ -1,0 +1,21 @@
+type: 5
+element:
+  - 800
+  - 800
+  - 800
+  - 800
+  - 800
+cell_dim:
+  - 10
+  - 10
+  - 10
+device: gpu
+solutions: 128
+total_iter: 10
+parallel_task: 256
+converge_depth: 10
+weight:
+  - 4.0
+  - 1.0
+  - 0.5
+structure: POSCAR_FCC
