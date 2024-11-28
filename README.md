@@ -1,4 +1,4 @@
-# PyHEA: High Performance High Entropy Alloys Model Builder
+# PyHEA: A High Performance High-Entropy Alloys Model Builder
 
 [![License](https://img.shields.io/badge/License-LGPL3.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org)
@@ -168,10 +168,11 @@ If you use PyHEA in your research, please cite:
 
 ```bibtex
 @software{pyhea2024,
-  author = {Niu, Charmy},
-  title = {PyHEA: High Performance High Entropy Alloys Model Builder},
+  author = {Niu, Caimei},
+  title = {PyHEA: A High Performance High-Entropy Alloys Model Builder},
   year = {2024},
   url = {https://github.com/yourusername/pyhea}
+  note = {Manuscript in preparation.}
 }
 ```
 
