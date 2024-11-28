@@ -1,3 +1,14 @@
+"""! @file
+@brief Main entry point for the PyHEA (High Entropy Alloys Model) simulation.
+
+This module serves as the main entry point for running the High Entropy Alloys Model simulation.
+It handles command-line argument parsing, configuration loading, and initialization of the
+simulation components.
+
+@author Caimei Niu
+@version 1.0
+"""
+
 import time
 import argparse
 
@@ -8,6 +19,21 @@ from hea.utils import logger
 from hea.comm import comm
 
 def main():
+    """! Main function to run the PyHEA lattice simulation.
+    
+    This function performs the following operations:
+    1. Parses command-line arguments
+    2. Loads and validates configuration from YAML file
+    3. Initializes the lattice simulation
+    4. Displays simulation parameters and setup information
+    
+    Command-line Arguments:
+        --config: Path to the configuration YAML file (default: 'config.yaml')
+        --version: Show program's version number and exit
+        --help: Show help message and exit
+    
+    @return None
+    """
     # Initialize the argument parser
     parser = argparse.ArgumentParser(
         description="A script to run the HEAM lattice simulation."
@@ -26,7 +52,7 @@ def main():
         ╔═════════════╗
         ║   Fe   Ni   ║   A High performance implementation of building the High Entropy Alloys Models,
         ║      Mn     ║   
-        ║   Al   Co   ║   Developed by Charmy Niu and Dr. Eric Lu.
+        ║   Al   Co   ║   Developed by Caimei Niu.
         ╚═════════════╝
             """
     )
@@ -52,7 +78,7 @@ def main():
         config.cell_dim,
         config.latt_type,
         config.latt_const,
-        valid=False)
+        valid=True)
 
     start = time.time()
     model = opt_model(lattice_instance, config, comm)
