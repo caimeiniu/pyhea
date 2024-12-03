@@ -51,11 +51,6 @@ class opt_model:
             exit()
         self.weight = conf.weight
         
-        # Save self.nbor into a txt file
-        with open("nbor.txt", "w") as nbor_file:
-            for shell in self.nbor:
-                nbor_file.write(" ".join(map(str, shell)) + "\n")
-
     def run_optimization(self):
         """Run the Local Parallel HCS optimization algorithm.
         

@@ -1,12 +1,13 @@
-type: 3
+type: 4
 element:
-  - 36
-  - 36
-  - 36
+  - 102400
+  - 102400
+  - 25600
+  - 25600
 cell_dim:
-  - 3
-  - 3
-  - 3
+  - 40
+  - 40
+  - 40
 device: gpu
 solutions: 128
 total_iter: 10
@@ -14,9 +15,9 @@ parallel_task: 256
 converge_depth: 10
 weight:
   - 4.0
-  - 1.0
-  - 0.5
-# target_sro: TARGET_SRO
+  - 0.1
+  - 0.1
+target_sro: TARGET_SRO
 structure: POSCAR_FCC
 output:
   name: conf           # Output file name, default: output

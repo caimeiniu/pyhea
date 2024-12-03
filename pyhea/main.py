@@ -64,7 +64,7 @@ def main():
     config = input_config(args.config)
     logger.info(f"Configuration loaded successfully.")
     logger.info(f"{'Element types:':<30} {config.element}")
-    logger.info(f"{'Element weights:':<30} {config.weight}")
+    logger.info(f"{'Sro shell weights:':<30} {config.weight}")
     logger.info(f"{'Cell dimensions:':<30} {config.cell_dim}")
     logger.info(f"{'Number of solutions:':<30} {config.solutions}")
     logger.info(f"{'Number of shells:':<30} {config.max_shell_num}")

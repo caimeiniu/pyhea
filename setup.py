@@ -129,14 +129,15 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
         "numpy>=1.19.0",
         "scipy>=1.7.0", 
         "pyyaml>=5.1",
         "mpi4py>=3.0.0",
         "pybind11>=2.6.0",
-        "dpdata>=0.2.12",  # For structure file format conversion
+        "dpdata>=0.2.12",
+        "matplotlib>=3.7.0",
         "WarrenCowleyParameters>=2.0.0"
     ],
     entry_points={

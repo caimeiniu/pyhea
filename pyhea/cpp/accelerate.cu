@@ -25,6 +25,11 @@
 namespace accelerate {
 namespace gpu {
 
+/**
+ * @brief Checks if CUDA is available on the system.
+ * 
+ * @return true if at least one CUDA device is available, false otherwise.
+ */
 bool cuda_available() {
     int device_count = 0;
     cudaGetDeviceCount(&device_count);
@@ -33,48 +38,56 @@ bool cuda_available() {
 
 #define THREADS_PER_BLOCK 256
 
+/**
+ * @brief Gets the current time in microseconds.
+ * 
+ * @return unsigned long long Current time in microseconds since epoch.
+ */
 unsigned long long get_microseconds() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+namespace bit_utils {
+    template <typename Integer> 
+    __device__ __host__ __forceinline__ Integer pack_4types(Integer a, Integer b, Integer c, Integer d) {
+        return (a & 0x3) | ((b & 0x3) << 2) | ((c & 0x3) << 4) | ((d & 0x3) << 6);
+    }
+
+    template <typename Integer>
+    __device__ __host__ __forceinline__ Integer get_type(Integer packed, int index) {
+        return (packed >> (index * 2)) & 0x3;
+    }
+
+    template <typename Integer>
+    __device__ __host__ __forceinline__ void set_type(Integer& packed, int index, Integer value) {
+        Integer mask = ~(0x3 << (index * 2));
+        packed = (packed & mask) | ((value & 0x3) << (index * 2));
+    }
+
+    template <typename Integer>
+    __device__ __host__ __forceinline__ Integer pack_type(Integer type) {
+        return type & 0x3;
+    }
+}
+
 /**
- * @brief Calculate the fitness of lattices based on Short-Range Order (SRO) coefficients.
- *
- * This kernel function computes the fitness of different lattices by evaluating the 
- * Short-Range Order (SRO) coefficients. Each block processes a different lattice.
- *
- * @tparam Integer Integer type, typically int.
- * @tparam Real Floating-point type, typically float or double.
- *
- * @param num_atoms [in] Number of atoms in each lattice.
- * @param num_types [in] Number of different atom types.
- * @param num_shells [in] Number of neighbor shells to consider.
- * @param neighbor_list [in] Array of neighbor indices for each atom.
- * @param neighbor_list_indices [in] Array of indices pointing to the start of each atom's neighbor list.
- * @param species [in] Array of species types for each atom.
- * @param weights [in] Array of weights for each shell.
- * @param target_sro [in] Array of SRO values for each shell.
- * @param coefficients [out] Array to store the computed SRO coefficients.
- * @param fitness [out] Array to store the computed fitness values for each lattice.
- * @param lattices [in] Array of lattices, each containing num_atoms atoms.
- *
- * The function performs the following steps:
- * 1. Initialize shared memory for SRO coefficients.
- * 2. For each atom in the lattice, compute the SRO coefficients by iterating over its neighbors.
- * 3. Use atomic operations to update shared memory with the computed values.
- * 4. Copy the shared SRO coefficients to global memory.
- * 5. Compute the fitness value for the lattice based on the SRO coefficients and weights.
- *
- * The fitness value is calculated using the formula:
- * \f[
- * \text{fitness} = \sqrt{\sum_{k=0}^{\text{num\_shells}-1} \text{weights}[k] \times \text{error}_k}
- * \f]
- * where \f$\text{error}_k\f$ is the error for shell \f$k\f$, computed as:
- * \f[
- * \text{error}_k = \sum_{i=0}^{\text{num\_types}-1} \sum_{j=0}^{\text{num\_types}-1} (i \neq j) \left( \text{shared\_gamma}[i \times \text{num\_types} \times \text{num\_shells} + j \times \text{num\_shells} + k] - \frac{\text{shared\_alpha}[i \times \text{num\_types} \times \text{num\_shells} + j \times \text{num\_shells} + k]}{\text{shared\_count}[i \times \text{num\_types} \times \text{num\_shells} + j \times \text{num\_shells} + k]} \right)^2
- * \f]
+ * @brief Calculates fitness values for multiple lattices based on Short-Range Order (SRO) coefficients.
+ * 
+ * @tparam Integer Integer type used for indices and counts.
+ * @tparam Real Floating-point type used for calculations.
+ * @param[in] num_atoms Number of atoms in each lattice.
+ * @param[in] num_types Number of different atom types.
+ * @param[in] num_shells Number of neighbor shells to consider.
+ * @param[in] neighbor_list List of neighbor indices for each atom.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list for each atom.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] target_sro Target SRO values to compare against.
+ * @param[out] coefficients Computed SRO coefficients.
+ * @param[out] fitness Computed fitness values for each lattice.
+ * @param[in] lattices Array of lattice configurations.
  */
 template <typename Integer, typename Real>
 __global__ void calculate_fitness_of_lattices(
@@ -140,9 +153,9 @@ __global__ void calculate_fitness_of_lattices(
 
 /**
  * @brief Initializes CURAND states for random number generation.
- *
- * @param[in,out] rng_states Pointer to an array of CURAND states.
- * @param[in] seed The seed for random number generation.
+ * 
+ * @param[out] rng_states Array of CURAND states to initialize.
+ * @param[in] seed Random seed value.
  */
 __global__ void init_curand(curandState* rng_states, unsigned long long seed) {
     int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -150,20 +163,13 @@ __global__ void init_curand(curandState* rng_states, unsigned long long seed) {
 }
 
 /**
- * @brief Kernel function to generate normal lattices based on species distribution.
- *
- * This CUDA kernel generates normal lattices for a given number of atoms. Each lattice
- * is determined by the species distribution provided. The kernel assigns lattice values
- * based on the species array, where each species type is represented by an integer.
- *
- * @tparam Integer The integer type used for indexing and lattice values.
- * @param num_atoms [in] The total number of atoms in each lattice.
- * @param species [in] An array representing the distribution of species. The first element
- *                indicates the number of atoms of species 0, the second element indicates
- *                the number of atoms of species 1, and so on. Dimension: [number of species]
- * @param lattices [out] An output array where the generated lattices will be stored. Each block
- *                 generates one lattice, and the lattices are stored consecutively in this array.
- *                 Dimension: [number of blocks * num_atoms]
+ * @brief Generates initial lattice configurations based on species distribution.
+ * 
+ * @tparam Integer Integer type used for indices and counts.
+ * @param[in] num_atoms Total number of atoms per lattice.
+ * @param[in] num_types Number of different atom types.
+ * @param[in] species Array containing count of each atom type.
+ * @param[out] lattices Output array for generated lattices.
  */
 template <typename Integer>
 __global__ void generate_normal_lattices(const Integer num_atoms, const Integer num_types, const Integer* species, Integer* lattices) 
@@ -186,6 +192,15 @@ __global__ void generate_normal_lattices(const Integer num_atoms, const Integer 
     }
 }
 
+/**
+ * @brief Locates the index of the best fitness value in a block.
+ * 
+ * @tparam Integer Integer type used for indices.
+ * @tparam Real Floating-point type used for fitness values.
+ * @param[in] fitness Array of fitness values.
+ * @param[in,out] indices Array of indices.
+ * @return int Index of the best fitness value.
+ */
 template <typename Integer, typename Real>
 __device__ __forceinline__ int locate_best_fitness(Real* fitness, Integer* indices) {
     const Integer tid = threadIdx.x;
@@ -207,11 +222,27 @@ __device__ __forceinline__ int locate_best_fitness(Real* fitness, Integer* indic
     return indices[0]; // Index of the minimum value in shared memory
 }
 
+/**
+ * @brief Calculates SRO coefficients for a given lattice configuration.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for calculations.
+ * @tparam LOW_Integer Lower precision integer type for lattice values.
+ * @tparam LOW_Real Lower precision floating-point type for intermediate calculations.
+ * @tparam NUM_TYPES Number of atom types (compile-time constant).
+ * @tparam NUM_SHELLS Number of neighbor shells (compile-time constant).
+ * @param[in] num_atoms Number of atoms in the lattice.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] neighbor_list List of neighbor indices.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list.
+ * @param[out] coefficients Output array for computed coefficients.
+ * @param[in] lattice Current lattice configuration.
+ */
 template <typename Integer, typename Real,
           typename LOW_Integer, typename LOW_Real,
           int NUM_TYPES, int NUM_SHELLS>
-__device__ __forceinline__ 
-void calculate_coefficients(
+__device__ __forceinline__ void calculate_coefficients(
     const Integer& num_atoms,
     const Integer* species, const Real* weights,
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
@@ -249,8 +280,61 @@ void calculate_coefficients(
 template <typename Integer, typename Real,
           typename LOW_Integer, typename LOW_Real,
           int NUM_TYPES, int NUM_SHELLS>
-__device__ __forceinline__ 
-Real calculate_fitness(
+__device__ __forceinline__ void calculate_coefficients_bit_packed(
+    const Integer& num_atoms,
+    const Integer* species, const Real* weights,
+    const Integer* neighbor_list, const Integer* neighbor_list_indices,
+    Real* coefficients,
+    const uint8_t* lattice)
+{
+    __syncthreads();
+    const Integer NUM_COEFFICIENTS = NUM_TYPES * NUM_TYPES * NUM_SHELLS;
+    Real* gamma = coefficients;
+
+    for (Integer ii = threadIdx.x; ii < num_atoms; ii += blockDim.x) {
+        LOW_Integer atom = bit_utils::get_type(lattice[ii / 4], ii % 4);
+
+        for (Integer shell = 0; shell < NUM_SHELLS; ++shell) {
+            Integer neighbor_size = neighbor_list_indices[ii * NUM_SHELLS + shell + 1] 
+                                  - neighbor_list_indices[ii * NUM_SHELLS + shell];
+
+            for (Integer kk = 0; kk < neighbor_size; ++kk) {
+                Integer idx = neighbor_list[neighbor_list_indices[ii * NUM_SHELLS + shell] + kk];
+                LOW_Integer neighbor = bit_utils::get_type(lattice[idx / 4], idx % 4);
+
+                Integer index = atom * NUM_TYPES * NUM_SHELLS + neighbor * NUM_SHELLS + shell;
+                atomicAdd(&gamma[index], 1.0 / (neighbor_size * num_atoms));
+            }
+        }
+    }
+    __syncthreads();
+}
+
+/**
+ * @brief Calculates fitness for a proposed lattice configuration with two atoms swapped.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for calculations.
+ * @tparam LOW_Integer Lower precision integer type for lattice values.
+ * @tparam LOW_Real Lower precision floating-point type for intermediate calculations.
+ * @tparam NUM_TYPES Number of atom types (compile-time constant).
+ * @tparam NUM_SHELLS Number of neighbor shells (compile-time constant).
+ * @param[in] atom1 Index of first atom to swap.
+ * @param[in] atom2 Index of second atom to swap.
+ * @param[in] num_atoms Total number of atoms.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] neighbor_list List of neighbor indices.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list.
+ * @param[in] target_sro Target SRO values to compare against.
+ * @param[out] coefficients Temporary array for coefficient calculations.
+ * @param[in,out] lattice Current lattice configuration.
+ * @return Real Computed fitness value for the proposed configuration.
+ */
+template <typename Integer, typename Real,
+          typename LOW_Integer, typename LOW_Real,
+          int NUM_TYPES, int NUM_SHELLS>
+__device__ __forceinline__ Real calculate_fitness(
     const Integer& atom1, const Integer& atom2,
     const Integer& num_atoms,
     const Integer* species, const Real* weights,
@@ -314,11 +398,31 @@ Real calculate_fitness(
     return sqrt(fitness);
 }
 
+/**
+ * @brief Calculates fitness for a proposed lattice configuration with two atoms swapped.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for calculations.
+ * @tparam LOW_Integer Lower precision integer type for lattice values.
+ * @tparam LOW_Real Lower precision floating-point type for intermediate calculations.
+ * @tparam NUM_TYPES Number of atom types (compile-time constant).
+ * @tparam NUM_SHELLS Number of neighbor shells (compile-time constant).
+ * @param[in] atom1 Index of first atom to swap.
+ * @param[in] atom2 Index of second atom to swap.
+ * @param[in] num_atoms Total number of atoms.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] neighbor_list List of neighbor indices.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list.
+ * @param[in] target_sro Target SRO values to compare against.
+ * @param[out] coefficients Temporary array for coefficient calculations.
+ * @param[in,out] lattice Current lattice configuration.
+ * @return Real Computed fitness value for the proposed configuration.
+ */
 template <typename Integer, typename Real,
           typename LOW_Integer, typename LOW_Real,
           int NUM_TYPES, int NUM_SHELLS>
-__device__ __forceinline__ 
-Real calculate_fitness_incremental(
+__device__ __forceinline__ Real calculate_fitness_incremental(
     const Integer& atom1, const Integer& atom2,
     const Integer& num_atoms,
     const Integer* species, const Real* weights,
@@ -409,6 +513,116 @@ Real calculate_fitness_incremental(
     return sqrt(fitness);
 }
 
+template <typename Integer, typename Real,
+          typename LOW_Integer, typename LOW_Real,
+          int NUM_TYPES, int NUM_SHELLS>
+__device__ __forceinline__ Real calculate_fitness_incremental_bit_packed(
+    const Integer& atom1, const Integer& atom2,
+    const Integer& num_atoms,
+    const Integer* species, const Real* weights,
+    const Integer* neighbor_list, const Integer* neighbor_list_indices,
+    const Real* target_sro,
+    Real* coefficients,
+    uint8_t* lattice)
+{
+    const Integer NUM_COEFFICIENTS = NUM_TYPES * NUM_TYPES * NUM_SHELLS;
+    Real* gamma = coefficients;
+
+    for (Integer shell = 0; shell < NUM_SHELLS; ++shell) {
+        LOW_Integer atom = bit_utils::get_type(lattice[atom1 / 4], atom1 % 4);
+        LOW_Integer atom_after_swap = bit_utils::get_type(lattice[atom2 / 4], atom2 % 4);
+        
+        Integer neighbor_size = neighbor_list_indices[atom1 * NUM_SHELLS + shell + 1] 
+                              - neighbor_list_indices[atom1 * NUM_SHELLS + shell];
+        
+        for (Integer kk = 0; kk < neighbor_size; ++kk) {
+            Integer idx = neighbor_list[neighbor_list_indices[atom1 * NUM_SHELLS + shell] + kk];
+            LOW_Integer neighbor = bit_utils::get_type(lattice[idx / 4], idx % 4);
+            LOW_Integer neighbor_after_swap = neighbor;
+            
+            if (idx == atom2) {
+                neighbor_after_swap = bit_utils::get_type(lattice[atom1 / 4], atom1 % 4);
+            } else if (idx == atom1) {
+                neighbor_after_swap = bit_utils::get_type(lattice[atom2 / 4], atom2 % 4);
+            }
+
+            Integer __ij = atom * NUM_TYPES * NUM_SHELLS + neighbor * NUM_SHELLS + shell;
+            Integer __ji = neighbor * NUM_TYPES * NUM_SHELLS + atom * NUM_SHELLS + shell;
+            Integer __ij_after_swap = atom_after_swap * NUM_TYPES * NUM_SHELLS + neighbor_after_swap * NUM_SHELLS + shell;
+            Integer __ji_after_swap = neighbor_after_swap * NUM_TYPES * NUM_SHELLS + atom_after_swap * NUM_SHELLS + shell;
+
+            gamma[__ij] -= 1.0 / (neighbor_size * num_atoms);
+            gamma[__ji] -= 1.0 / (neighbor_size * num_atoms);
+            gamma[__ij_after_swap] += 1.0 / (neighbor_size * num_atoms);
+            gamma[__ji_after_swap] += 1.0 / (neighbor_size * num_atoms);
+        }
+
+        atom = bit_utils::get_type(lattice[atom2 / 4], atom2 % 4);
+        atom_after_swap = bit_utils::get_type(lattice[atom1 / 4], atom1 % 4);
+        neighbor_size = neighbor_list_indices[atom2 * NUM_SHELLS + shell + 1] 
+                      - neighbor_list_indices[atom2 * NUM_SHELLS + shell];
+                      
+        for (Integer kk = 0; kk < neighbor_size; ++kk) {
+            Integer idx = neighbor_list[neighbor_list_indices[atom2 * NUM_SHELLS + shell] + kk];
+            LOW_Integer neighbor = bit_utils::get_type(lattice[idx / 4], idx % 4);
+            LOW_Integer neighbor_after_swap = neighbor;
+            
+            if (idx == atom1) {
+                neighbor_after_swap = bit_utils::get_type(lattice[atom2 / 4], atom2 % 4);
+            } else if (idx == atom2) {
+                neighbor_after_swap = bit_utils::get_type(lattice[atom1 / 4], atom1 % 4);
+            }
+
+            Integer __ij = atom * NUM_TYPES * NUM_SHELLS + neighbor * NUM_SHELLS + shell;
+            Integer __ji = neighbor * NUM_TYPES * NUM_SHELLS + atom * NUM_SHELLS + shell;
+            Integer __ij_after_swap = atom_after_swap * NUM_TYPES * NUM_SHELLS + neighbor_after_swap * NUM_SHELLS + shell;
+            Integer __ji_after_swap = neighbor_after_swap * NUM_TYPES * NUM_SHELLS + atom_after_swap * NUM_SHELLS + shell;
+
+            gamma[__ij] -= 1.0 / (neighbor_size * num_atoms);
+            gamma[__ji] -= 1.0 / (neighbor_size * num_atoms);
+            gamma[__ij_after_swap] += 1.0 / (neighbor_size * num_atoms);
+            gamma[__ji_after_swap] += 1.0 / (neighbor_size * num_atoms);
+        }
+    }
+
+    Real fitness = 0.0;
+    for (Integer shell = 0; shell < NUM_SHELLS; ++shell) {
+        Real fitness_shell = 0.0;
+        for (Integer ii = 0; ii < NUM_TYPES; ++ii) {
+            for (Integer jj = 0; jj < NUM_TYPES; ++jj) {
+                Integer index = ii * NUM_TYPES * NUM_SHELLS + jj * NUM_SHELLS + shell;
+                Real sro = 1 - gamma[index] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * 
+                                             (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
+                Real shell_sro = target_sro[shell * NUM_TYPES * NUM_TYPES + ii * NUM_TYPES + jj];
+                fitness_shell += (sro - shell_sro) * (sro - shell_sro);
+            }
+        }
+        fitness += weights[shell] * fitness_shell;
+    }
+    return sqrt(fitness);
+}
+
+/**
+ * @brief Performs parallel Monte Carlo optimization of lattice configurations.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for calculations.
+ * @tparam LOW_Integer Lower precision integer type for lattice values.
+ * @tparam LOW_Real Lower precision floating-point type for intermediate calculations.
+ * @tparam NUM_TYPES Number of atom types (compile-time constant).
+ * @tparam NUM_SHELLS Number of neighbor shells (compile-time constant).
+ * @param[in] threshold Acceptance threshold for Monte Carlo moves.
+ * @param[in] search_depth Number of Monte Carlo steps to perform.
+ * @param[in] seed Random seed value.
+ * @param[in] num_atoms Number of atoms per lattice.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] neighbor_list List of neighbor indices.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list.
+ * @param[in] target_sro Target SRO values to compare against.
+ * @param[out] fitness Array for computed fitness values.
+ * @param[in,out] lattices Array of lattice configurations.
+ */
 template <typename Integer, typename Real,
           typename LOW_Integer, typename LOW_Real,
           int NUM_TYPES, int NUM_SHELLS>
@@ -517,7 +731,134 @@ __global__ void parallel_monte_carlo(
 }
 
 
+template <typename Integer, typename Real,
+          typename LOW_Integer, typename LOW_Real,
+          int NUM_TYPES, int NUM_SHELLS>
+__global__ void parallel_monte_carlo_bit_packed(
+    const Real threshold, const Integer search_depth,
+    const unsigned long long seed, const Integer num_atoms,
+    const Integer* species, const Real* weights,
+    const Integer* neighbor_list, const Integer* neighbor_list_indices,
+    const Real* target_sro,
+    Real* fitness, Integer* lattices)
+{
+    static_assert(NUM_TYPES <= 4, "Bit-packed version only supports up to 4 types");
+    
+    extern __shared__ Real shared[];
+    
+    const Integer bid = blockIdx.x;
+    const Integer tid = threadIdx.x;
 
+    const Integer num_blocks = gridDim.x;
+    const Integer num_threads = blockDim.x;
+    const Integer NUM_COEFFICIENTS = NUM_SHELLS * NUM_TYPES * NUM_TYPES;
+
+    // Initialize random state
+    curandState local_state;
+    curand_init(seed + bid * blockDim.x + tid, 0, 0, &local_state);
+    
+    // Shared memory layout for bit-packed version
+    Integer*     shared_depth     = reinterpret_cast<Integer*>(shared);
+    Integer*     shared_indices   = shared_depth   + num_threads;
+    LOW_Integer* shared_lattice   = reinterpret_cast<LOW_Integer*>(shared_indices + num_threads); // LOW_Integer type for shared lattice
+    Real* shared_fitness          = reinterpret_cast<Real*>(shared_lattice + (num_atoms + 3) / 4); // Adjust for LOW_Integer
+    Real* shared_coefficients     = shared_fitness + num_threads;
+
+    shared_fitness[tid] = 100;
+
+    // Init fitness
+    if (tid == 0) {
+        shared_depth[0] = 0;
+    }
+    Real reg_fitness = fitness[bid];
+
+    // Pack 4 atoms into each byte
+    for (Integer ii = tid; ii < (num_atoms + 3) / 4; ii += num_threads) {
+        LOW_Integer packed = 0;
+        for (Integer jj = 0; jj < 4 && ii * 4 + jj < num_atoms; jj++) {
+            bit_utils::set_type(packed, jj, LOW_Integer(lattices[bid * num_atoms + ii * 4 + jj]));
+        }
+        shared_lattice[ii] = packed;
+    }
+    for (Integer ii = tid; ii < NUM_COEFFICIENTS; ii += num_threads) {
+        shared_coefficients[ii] = 0.0;
+    }
+    
+    calculate_coefficients_bit_packed<Integer, Real, LOW_Integer, LOW_Real, NUM_TYPES, NUM_SHELLS>(
+        num_atoms, species, weights, neighbor_list, neighbor_list_indices, shared_coefficients, shared_lattice);
+    
+    Real coefficients[NUM_COEFFICIENTS];
+    Integer reg_depth = shared_depth[0];
+
+    while (reg_depth < search_depth) {
+        // Initialize coefficients
+        for (Integer ii = 0; ii < NUM_COEFFICIENTS; ii++) {
+            coefficients[ii] = shared_coefficients[ii];
+        }
+
+        Integer atom1 = curand(&local_state) % num_atoms;
+        Integer atom2 = curand(&local_state) % num_atoms;
+
+        // Ensure atom1 and atom2 are different
+        while (atom1 == atom2 || bit_utils::get_type(shared_lattice[atom1 / 4], atom1 % 4) == bit_utils::get_type(shared_lattice[atom2 / 4], atom2 % 4)) {
+            atom1 = curand(&local_state) % num_atoms;
+            atom2 = curand(&local_state) % num_atoms;
+        }
+
+        // Calculate fitness incrementally
+        shared_fitness[tid] = calculate_fitness_incremental_bit_packed<Integer, Real, LOW_Integer, LOW_Real, NUM_TYPES, NUM_SHELLS>(
+            atom1, atom2, num_atoms, species, weights, neighbor_list, neighbor_list_indices, target_sro, coefficients, shared_lattice);
+        
+        Integer id = locate_best_fitness(shared_fitness, shared_indices);
+
+        if ((shared_fitness[id] < reg_fitness)) {
+            reg_fitness = shared_fitness[id];
+            if (tid == id) {
+                // Swap atom1 and atom2 in the shared lattice (LOW_Integer)
+                uint8_t type1 = bit_utils::get_type(shared_lattice[atom1 / 4], atom1 % 4);
+                uint8_t type2 = bit_utils::get_type(shared_lattice[atom2 / 4], atom2 % 4);
+                bit_utils::set_type(shared_lattice[atom1 / 4], atom1 % 4, type2);
+                bit_utils::set_type(shared_lattice[atom2 / 4], atom2 % 4, type1);
+                for (Integer ii = 0; ii < NUM_COEFFICIENTS; ii++) {
+                    shared_coefficients[ii] = coefficients[ii];
+                }
+            }
+            if (tid == 0) {
+                shared_depth[0] = 0;
+            }
+        } else {
+            if (tid == 0) {
+                shared_depth[0] += 1;
+            }
+        }   
+        __syncthreads();
+        reg_depth = shared_depth[0];
+    }
+    __syncthreads();
+    
+    if (tid == 0) {
+        fitness[bid] = reg_fitness;
+    }
+    
+    // Save final lattice configuration
+    for (Integer i = tid; i < (num_atoms + 3) / 4; i += blockDim.x) {
+        uint8_t packed = shared_lattice[i];
+        for (int j = 0; j < 4 && i * 4 + j < num_atoms; j++) {
+            lattices[bid * num_atoms + i * 4 + j] = bit_utils::get_type(packed, j);
+        }
+    }
+}
+
+/**
+ * @brief Sorts lattices based on their fitness values.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for fitness values.
+ * @param[in,out] lattices Array of lattice configurations.
+ * @param[in,out] fitness Array of fitness values.
+ * @param[in] num_lattices Number of lattices to sort.
+ * @param[in] num_atoms Number of atoms per lattice.
+ */
 template <typename Integer, typename Real>
 void sort_lattices_by_fitness(Integer* lattices, Real* fitness, size_t num_lattices, size_t num_atoms) {
     Integer* indices = new Integer[num_lattices];
@@ -550,6 +891,24 @@ void sort_lattices_by_fitness(Integer* lattices, Real* fitness, size_t num_latti
     cudaFree(sorted_lattices);
 }
 
+/**
+ * @brief Generates random lattice configurations using parallel Monte Carlo.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for calculations.
+ * @param[in] num_lattices Number of lattices to generate.
+ * @param[in] num_types Number of atom types.
+ * @param[in] num_atoms Number of atoms per lattice.
+ * @param[in] num_shells Number of neighbor shells.
+ * @param[in] species Array containing count of each atom type.
+ * @param[in] weights Weight factors for each shell.
+ * @param[in] neighbor_list List of neighbor indices.
+ * @param[in] neighbor_list_indices Starting indices in neighbor_list.
+ * @param[in] target_sro Target SRO values to compare against.
+ * @param[out] coefficients Array for computed coefficients.
+ * @param[out] fitness Array for computed fitness values.
+ * @param[out] lattices Output array for generated lattices.
+ */
 template <typename Integer, typename Real>
 void generate_random_lattices(
         Integer num_lattices, 
@@ -576,19 +935,16 @@ void generate_random_lattices(
 }
 
 /**
- * @brief Optimizes atomic configurations using a Monte Carlo method to minimize fitness.
- *
- * This function performs a Monte Carlo optimization on a set of atomic configurations, 
- * adjusting their arrangements to minimize a fitness metric related to short-range order.
- *
- * @param lattices A reference to a 2D vector containing the current atomic configurations.
- * @param fitness A reference to a vector containing the fitness values associated with each configuration.
- * @param neighbor_list A constant reference to a 3D vector containing neighboring atom information 
- *        for each shell.
- * @param species A constant reference to a vector representing the types of elements present.
- * @param weights A constant reference to a vector of weights for the short-range order calculations.
- *
- * @return A tuple containing the updated lattices and fitness values after optimization.
+ * @brief Selects best lattice configurations from current and new populations.
+ * 
+ * @tparam Integer Integer type for indices.
+ * @tparam Real Floating-point type for fitness values.
+ * @param[in] num_lattices Number of lattices to select.
+ * @param[in] num_atoms Number of atoms per lattice.
+ * @param[in,out] lattices Current lattice configurations.
+ * @param[in] new_lattices New lattice configurations.
+ * @param[in,out] fitness Current fitness values.
+ * @param[in] new_fitness New fitness values.
  */
 template <typename Integer, typename Real>
 void local_parallel_monte_carlo(
@@ -600,10 +956,11 @@ void local_parallel_monte_carlo(
     const Real* target_sro,
     Real* fitness, Integer* lattices)
 {
+    using LOW_Integer = uint8_t;
     unsigned long long seed = get_microseconds();
     const int num_coefficients = num_types * num_types * num_shells;
-    const size_t shared_usage = 2 * num_tasks * sizeof(Integer) 
-        + num_atoms * sizeof(uint8_t)
+    size_t shared_usage = 2 * num_tasks * sizeof(Integer) 
+        + num_atoms * sizeof(LOW_Integer)
         + num_tasks * sizeof(Real)
         + num_coefficients * sizeof(Real);
 
@@ -614,82 +971,93 @@ void local_parallel_monte_carlo(
     // Set maximum shared memory for the kernel
     cudaFuncAttributes attr;
     if (num_types == 3 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     } else if (num_types == 4 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     } else if (num_types == 5 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     } else if (num_types == 6 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     } else if (num_types == 4 && num_shells == 2) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     } else if (num_types == 5 && num_shells == 2) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>, 
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>, 
                            cudaFuncAttributeMaxDynamicSharedMemorySize, 
                            prop.sharedMemPerBlockOptin);
     }
 
     // Check if shared memory requirement exceeds maximum available
-    if (shared_usage > prop.sharedMemPerBlockOptin) {
-        std::cerr << "Error: Required shared memory (" << shared_usage 
-                 << " bytes) exceeds maximum available shared memory (" 
-                 << prop.sharedMemPerBlockOptin << " bytes)" << std::endl;
+    if (shared_usage > prop.sharedMemPerBlockOptin && (
+        num_types != 4 || shared_usage / 4 > prop.sharedMemPerBlockOptin)) {
+        auto now = std::chrono::system_clock::now();
+        auto now_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm* now_tm = std::localtime(&now_time_t);
+        std::cerr << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << " - PyHEA - INFO - " 
+                  << "Error: Required shared memory (" << shared_usage 
+                  << " bytes) exceeds maximum available shared memory (" 
+                  << prop.sharedMemPerBlockOptin << " bytes)" << std::endl;
         exit(1);
     }
+    shared_usage = prop.sharedMemPerBlockOptin;
     
     if (     num_types == 3 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     }
     else if (num_types == 4 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 5 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 6 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     }
     else if (num_types == 4 && num_shells == 2) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 5 && num_shells == 2) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 6 && num_shells == 2) {
-        parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 2><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     } 
     else {
-        std::cerr << "GPU implementation is not available for the given number of types " << num_types 
+        auto now = std::chrono::system_clock::now();
+        auto now_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm* now_tm = std::localtime(&now_time_t);
+        std::cerr <<  std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << " - PyHEA - INFO - " 
+                  << "Error: Parallel Monte Carlo optimization "
+                  << "GPU implementation is not available for the given number of types " << num_types 
                   << " and shells " << num_shells << std::endl;
         exit(1);
     } 
@@ -701,21 +1069,17 @@ void calculate_best_lattices(Integer num_lattices, Integer num_atoms, Integer* l
 }
 
 /**
- * @brief Executes a local parallel heuristic search (HCS) algorithm.
- *
- * This function performs a local parallel heuristic search to optimize a set of lattices.
- * It generates initial random lattices, evaluates their fitness, and iteratively improves
- * them using a Monte Carlo method until a stopping criterion is met.
- *
- * @param num_lattices The number of networks or lattices to generate.
- * @param num_iters The maximum number of iterations to perform.
- * @param num_tasks The num_tasks identifier for the Monte Carlo method.
- * @param search_depth The search_depth parameter for the Monte Carlo method.
- * @param threshold The threshold value for the fitness score to stop the iterations.
- * @param neighbor_list A 3D vector representing the neighborhood relationships.
- * @param species A vector representing the elements or nodes in the lattices.
- * @param weights A vector representing the weights associated with the elements.
- * @return A tuple containing the optimized lattices and their corresponding fitness scores.
+ * @brief Main optimization function for finding optimal lattice configurations.
+ * 
+ * @param[in] num_iters Number of optimization iterations.
+ * @param[in] num_lattices Number of lattices in population.
+ * @param[in] host_species Array containing count of each atom type.
+ * @param[in] host_weights Weight factors for each shell.
+ * @param[in] host_nbor Neighbor list information.
+ * @param[in] host_target_sro Target SRO values to achieve.
+ * @param[in] host_lattices Initial lattice configurations.
+ * @param[out] best_lattices Output array for best found configurations.
+ * @param[out] best_fitness Output array for best fitness values.
  */
 std::tuple<std::vector<std::vector<int>>, std::vector<double>> 
 run_local_parallel_hcs_cuda(
