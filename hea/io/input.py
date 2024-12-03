@@ -300,8 +300,19 @@ class input_config:
                 for i, shell in enumerate(all_shells):
                     if i < 3:  # Only use first 3 shells
                         default_shells[i] = shell
-                
-                return default_shells
+
+                full_shells = np.array([[0.0] * (num_types * num_types)] * 3)
+                for shell in range(3):
+                    full_shells[shell][0] = default_shells[shell][0]
+                    full_shells[shell][1] = default_shells[shell][1]
+                    full_shells[shell][2] = default_shells[shell][3]
+                    full_shells[shell][3] = default_shells[shell][1]
+                    full_shells[shell][4] = default_shells[shell][2]
+                    full_shells[shell][5] = default_shells[shell][4]
+                    full_shells[shell][6] = default_shells[shell][3]
+                    full_shells[shell][7] = default_shells[shell][4]
+                    full_shells[shell][8] = default_shells[shell][5]
+                return full_shells
                 
         except FileNotFoundError:
             raise FileNotFoundError(f"Target SRO file not found: {target_sro_file}")

@@ -7,3 +7,4 @@ pytest>=7.4.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 dpdata>=0.2.0
+WarrenCowleyParameters>=2.0.0

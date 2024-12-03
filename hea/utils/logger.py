@@ -3,6 +3,22 @@ from hea.comm import comm
 
 rank = comm.Get_rank()
 
+class WidthLimitedFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None, width=47):
+        super().__init__(fmt, datefmt)
+        self.width = width
+
+    def format(self, record):
+        original_message = super().format(record)
+        if len(original_message) > self.width and "#nocutoff" not in original_message:
+            lines = [
+                original_message[i:i + self.width]
+                for i in range(0, len(original_message), self.width)
+            ]
+            return '\n'.join(lines)
+        else:
+            return original_message.replace("#nocutoff", "")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -27,7 +43,8 @@ logger.error("This is an error message.")
 @endcode
 """
 # Set the time format to show only up to seconds
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+formatter = WidthLimitedFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S', width=84)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(formatter)
 
