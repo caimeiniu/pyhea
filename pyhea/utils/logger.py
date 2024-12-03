@@ -1,5 +1,5 @@
 import logging
-from hea.comm import comm
+from pyhea.comm import comm
 
 rank = comm.Get_rank()
 

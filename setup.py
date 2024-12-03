@@ -137,6 +137,7 @@ setup(
         "mpi4py>=3.0.0",
         "pybind11>=2.6.0",
         "dpdata>=0.2.12",  # For structure file format conversion
+        "WarrenCowleyParameters>=2.0.0"
     ],
     entry_points={
         'console_scripts': [

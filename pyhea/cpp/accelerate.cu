@@ -603,12 +603,58 @@ void local_parallel_monte_carlo(
     unsigned long long seed = get_microseconds();
     const int num_coefficients = num_types * num_types * num_shells;
     const size_t shared_usage = 2 * num_tasks * sizeof(Integer) 
-        + num_atoms * sizeof(uint16_t)
+        + num_atoms * sizeof(uint8_t)
         + num_tasks * sizeof(Real)
         + num_coefficients * sizeof(Real);
+
+    // Get device properties to check maximum shared memory
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
+    // Set maximum shared memory for the kernel
+    cudaFuncAttributes attr;
+    if (num_types == 3 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 4 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 5 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 6 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 4 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 5 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    }
+
+    // Check if shared memory requirement exceeds maximum available
+    if (shared_usage > prop.sharedMemPerBlockOptin) {
+        std::cerr << "Error: Required shared memory (" << shared_usage 
+                 << " bytes) exceeds maximum available shared memory (" 
+                 << prop.sharedMemPerBlockOptin << " bytes)" << std::endl;
+        exit(1);
+    }
     
     if (     num_types == 3 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint16_t, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
     }
@@ -688,7 +734,7 @@ run_local_parallel_hcs_cuda(
     const int num_shells = host_weights.size();
     const int num_types  = host_species.size();
     const int num_atoms  = std::accumulate(host_species.begin(), host_species.end(), 0);
-    const int num_coefficients = num_types * num_types * num_shells * 3;
+    const int num_coefficients = num_types * num_types * num_shells;
     std::vector<int> host_flat_nbor;
     std::vector<int> host_flat_nbor_idx;
     for (const auto& shell : neighbor_list) {

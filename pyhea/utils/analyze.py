@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ovito.io import import_file
 import WarrenCowleyParameters as wc
-from hea.utils import logger
+from pyhea.utils import logger
 
 def calculate_sro(filename, latt_type):
     """Calculate Short Range Order (SRO) parameters using WarrenCowleyParameters.
@@ -85,7 +85,7 @@ def analyze_sro_results(output_file, target_sro, element_types, latt_type):
     logger.info(f"target_sro: {target_sro[0].tolist()}")
 
     # Plot actual SRO values
-    plot_sro_heatmap(actual_sro[0], TYPE_LIST, 'actual_sro_heatmap.png')
+    plot_sro_heatmap(actual_sro[0], TYPE_LIST, 'sro_heatmap.png')
 
     # Calculate and report differences
     sro_diff = actual_sro - target_sro

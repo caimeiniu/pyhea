@@ -8,7 +8,7 @@ import os
 import tempfile
 from pathlib import Path
 import dpdata
-from hea.version import __version__
+from pyhea.version import __version__
 
 def write_structure(nest, latt, ntyp, elem, file, output_format='vasp/poscar'):
     """Write atomic structure data to the specified format.

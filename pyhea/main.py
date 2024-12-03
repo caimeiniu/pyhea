@@ -72,7 +72,6 @@ def main():
     logger.info(f"{'Convergence depth:':<30} {config.converge_depth}")
     logger.info(f"{'Parallel Monte Carlo tasks:':<30} {config.parallel_task}")
     logger.info(f"{'Running with processes:':<30} {comm.Get_size()}")
-    logger.info(f"{'Running with Device:':<30} {config.device}")
     logger.info(f"{'Target SRO:'} {config.target_sro.tolist()}")
     logger.info(f"{'Lattice structure:'} {config.structure}\n\n")
 

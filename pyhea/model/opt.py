@@ -1,8 +1,8 @@
-from hea.utils.logger import logger
-from hea.version import __version__  # Import version information
-from hea.io.output import write_structure
+from pyhea.utils.logger import logger
+from pyhea.version import __version__  # Import version information
+from pyhea.io.output import write_structure
 try:
-    from hea.cpp import accelerate as acc
+    from pyhea.cpp import accelerate as acc
 except ImportError:
     logger.error("Failed to import accelerate module. Please ensure the package is properly installed.")
     raise
@@ -113,7 +113,7 @@ class opt_model:
                 output_file = f"{output_name}.poscar"
             
             file_final_results(latts[0], self.latt, self.ntyp, self.element, output_file, output_format=output_format)
-            logger.info(f"Final lattice structure written to file {output_file}")
+            logger.info(f"Final lattice structure saved to file {output_file}")
         
         # Return the optimized latts and fitness values
         return latts, fitss
