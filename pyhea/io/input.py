@@ -303,15 +303,41 @@ class input_config:
 
                 full_shells = np.array([[0.0] * (num_types * num_types)] * 3)
                 for shell in range(3):
-                    full_shells[shell][0] = default_shells[shell][0]
-                    full_shells[shell][1] = default_shells[shell][1]
-                    full_shells[shell][2] = default_shells[shell][3]
-                    full_shells[shell][3] = default_shells[shell][1]
-                    full_shells[shell][4] = default_shells[shell][2]
-                    full_shells[shell][5] = default_shells[shell][4]
-                    full_shells[shell][6] = default_shells[shell][3]
-                    full_shells[shell][7] = default_shells[shell][4]
-                    full_shells[shell][8] = default_shells[shell][5]
+                    if num_types == 2:
+                        full_shells[shell][0] = default_shells[shell][0]
+                        full_shells[shell][1] = default_shells[shell][1]
+                        full_shells[shell][2] = default_shells[shell][1]
+                        full_shells[shell][3] = default_shells[shell][2]
+                    if num_types == 3:
+                        full_shells[shell][0] = default_shells[shell][0]
+                        full_shells[shell][1] = default_shells[shell][1]
+                        full_shells[shell][2] = default_shells[shell][3]
+                        full_shells[shell][3] = default_shells[shell][1]
+                        full_shells[shell][4] = default_shells[shell][2]
+                        full_shells[shell][5] = default_shells[shell][4]
+                        full_shells[shell][6] = default_shells[shell][3]
+                        full_shells[shell][7] = default_shells[shell][4]
+                        full_shells[shell][8] = default_shells[shell][5]
+                    if num_types == 4:
+                        full_shells[shell][0] = default_shells[shell][0]
+                        full_shells[shell][1] = default_shells[shell][1]
+                        full_shells[shell][2] = default_shells[shell][3]
+                        full_shells[shell][3] = default_shells[shell][6]
+                        full_shells[shell][4] = default_shells[shell][1]
+                        full_shells[shell][5] = default_shells[shell][2]
+                        full_shells[shell][6] = default_shells[shell][4]
+                        full_shells[shell][7] = default_shells[shell][7]
+                        full_shells[shell][8] = default_shells[shell][3]
+                        full_shells[shell][9] = default_shells[shell][4]
+                        full_shells[shell][10] = default_shells[shell][5]
+                        full_shells[shell][11] = default_shells[shell][8]
+                        full_shells[shell][12] = default_shells[shell][6]
+                        full_shells[shell][13] = default_shells[shell][7]
+                        full_shells[shell][14] = default_shells[shell][8]
+                        full_shells[shell][15] = default_shells[shell][9]
+                    else:
+                        raise ValueError(f"Unsupported number of atom types: {num_types}")
+                    
                 return full_shells
                 
         except FileNotFoundError:

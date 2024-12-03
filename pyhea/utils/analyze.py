@@ -49,24 +49,26 @@ def plot_sro_heatmap(sro_values, atom_labels, output_file='sro_heatmap.png'):
     @param atom_labels list List of atom type labels
     @param output_file str Output file path for the plot
     """
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(10, 8))  # Increased figure size
     plt.imshow(sro_values, cmap='RdBu', vmin=-1, vmax=1)
-    plt.colorbar(label='Warren-Cowley Parameter')
+    cbar = plt.colorbar(label='Warren-Cowley Parameter')
+    cbar.ax.tick_params(labelsize=12)  # Colorbar tick size
+    cbar.set_label('Warren-Cowley Parameter', size=14)  # Colorbar label size
     
-    # Add labels
-    plt.xticks(range(len(atom_labels)), atom_labels)
-    plt.yticks(range(len(atom_labels)), atom_labels)
-    plt.xlabel('Atom Type')
-    plt.ylabel('Atom Type')
-    plt.title('Warren-Cowley Parameters (1st Shell)')
+    # Add labels with increased font sizes
+    plt.xticks(range(len(atom_labels)), atom_labels, fontsize=12)
+    plt.yticks(range(len(atom_labels)), atom_labels, fontsize=12)
+    plt.xlabel('Atom Type', fontsize=14)
+    plt.ylabel('Atom Type', fontsize=14)
+    plt.title('Warren-Cowley Parameters (First Shell)', fontsize=16)
     
-    # Add value annotations
+    # Add value annotations with increased font size
     for i in range(len(atom_labels)):
         for j in range(len(atom_labels)):
             plt.text(j, i, f'{sro_values[i,j]:.2f}', 
-                    ha='center', va='center')
+                    ha='center', va='center', fontsize=11)
     
-    plt.savefig(output_file)
+    plt.savefig(output_file, bbox_inches='tight', dpi=300)  # Added tight layout and increased DPI
     plt.close()
 
 def analyze_sro_results(output_file, target_sro, element_types, latt_type):

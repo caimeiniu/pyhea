@@ -44,6 +44,7 @@ PYBIND11_MODULE(accelerate, m) {
         )pbdoc"
     );
 
+#ifdef USE_CUDA
     m.def("run_local_parallel_hcs_cuda", &accelerate::gpu::run_local_parallel_hcs_cuda, 
         pybind11::arg("nnet"),
         pybind11::arg("step"),
@@ -116,4 +117,5 @@ PYBIND11_MODULE(accelerate, m) {
                 A tuple containing the lattice structures and their fitness values.
         )pbdoc"
     );
+#endif // USE_CUDA
 }
