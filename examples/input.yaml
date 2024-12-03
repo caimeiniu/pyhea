@@ -18,5 +18,5 @@ weight:
   - 0.5
 structure: POSCAR_FCC
 output:
-  name: final          # Output file name, default: output
-  format: vasp/poscar  # Supported formats: vasp/poscar(default), lammps/lmp
+  name: conf          # Output file name, default: output
+  format: lammps/lmp  # Supported formats: vasp/poscar(default), lammps/lmp
