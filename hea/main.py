@@ -6,7 +6,6 @@ It handles command-line argument parsing, configuration loading, and initializat
 simulation components.
 
 @author Caimei Niu
-@version 1.0
 """
 
 import time

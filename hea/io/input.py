@@ -42,7 +42,13 @@ class input_config:
     # Allowed keys in the configuration file
     ALLOWED_KEYS = {
         'type', 'element', 'cell_dim', 'solutions', 'device', 'total_iter', 'weight',
-        'parallel_task', 'converge_depth', 'max_shell_num', 'structure'
+        'parallel_task', 'converge_depth', 'max_shell_num', 'structure', 'output'
+    }
+
+    # Supported output formats
+    SUPPORTED_FORMATS = {
+        'vasp/poscar': 'VASP POSCAR format (default)',
+        'lammps/lmp': 'LAMMPS data format'
     }
 
     def __init__(self, file_path):
@@ -124,6 +130,23 @@ class input_config:
         if sum(self.config.get('element', [])) != self.structure['num_atoms'] * np.prod(self.config.get('cell_dim', [])):
             raise ValueError(f"The sum of elements {sum(self.config.get('element', []))} does not match the total number of atoms {self.structure['num_atoms'] * np.prod(self.config.get('cell_dim', []))}")
 
+        # Validate output format if specified
+        if 'output' in self.config:
+            output_config = self.config['output']
+            if not isinstance(output_config, dict):
+                raise ValueError("Output configuration must be a dictionary")
+            
+            if 'format' in output_config:
+                output_format = output_config['format']
+                if output_format not in self.SUPPORTED_FORMATS:
+                    raise ValueError(f"Unsupported output format: {output_format}. "
+                                  f"Supported formats: {', '.join(self.SUPPORTED_FORMATS.keys())}")
+            
+            if 'name' in output_config:
+                output_name = output_config['name']
+                if not isinstance(output_name, str):
+                    raise ValueError("Output name must be a string")
+
     @property
     def type(self):
         return self.config.get('type', [])
@@ -180,3 +203,28 @@ class input_config:
     @property
     def latt_vectors(self):
         return self.structure.get('lattice_vectors', [])
+
+    @property
+    def output_format(self):
+        """Get the output format configuration.
+
+        Returns:
+            str: The output format (default: 'poscar')
+        """
+        output_config = self.config.get('output', {})
+        format_name = output_config.get('format', 'vasp/poscar').lower()
+        
+        if format_name not in self.SUPPORTED_FORMATS:
+            raise ValueError(f"Unsupported output format: {format_name}. "
+                           f"Supported formats are: {', '.join(self.SUPPORTED_FORMATS.keys())}")
+        
+        return format_name
+
+    @property
+    def output_name(self):
+        """Get the output name.
+        
+        @return str Output name (default: 'output')
+        """
+        output_config = self.config.get('output', {})
+        return output_config.get('name', 'output')

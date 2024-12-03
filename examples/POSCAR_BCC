@@ -1,9 +1,9 @@
-BCC structure   # comment line
-1.0             # universal scaling factor
-1.0 0.0 0.0     # first  Bravais lattice vector
-0.0 1.0 0.0     # second Bravais lattice vector
-0.0 0.0 1.0     # third  Bravais lattice vector
-2               # number of atoms
-direct          # direct or cart (only first letter is significant)
-0.0 0.0 0.0     # positions
+BCC structure    # comment line
+3.303            # universal scaling factor
+1.0 0.0 0.0      # first  Bravais lattice vector
+0.0 1.0 0.0      # second Bravais lattice vector
+0.0 0.0 1.0      # third  Bravais lattice vector
+2                # number of atoms
+direct           # direct or cart (only first letter is significant)
+0.0 0.0 0.0      # positions
 0.5 0.5 0.5
