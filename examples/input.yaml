@@ -1,13 +1,12 @@
-type: 4
+type: 3
 element:
-  - 32
-  - 32
-  - 32
-  - 32
+  - 36
+  - 36
+  - 36
 cell_dim:
-  - 4
-  - 4
-  - 4
+  - 3
+  - 3
+  - 3
 device: gpu
 solutions: 128
 total_iter: 10
@@ -17,4 +16,8 @@ weight:
   - 4.0
   - 1.0
   - 0.5
-structure: POSCAR_BCC
+# target_sro: TARGET_SRO
+structure: POSCAR_FCC
+output:
+  name: conf           # Output file name, default: output
+  format: lammps/lmp   # Supported formats: vasp/poscar(default), lammps/lmp

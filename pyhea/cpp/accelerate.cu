@@ -55,7 +55,7 @@ unsigned long long get_microseconds() {
  * @param neighbor_list_indices [in] Array of indices pointing to the start of each atom's neighbor list.
  * @param species [in] Array of species types for each atom.
  * @param weights [in] Array of weights for each shell.
- * @param sro [in] Array of SRO values for each shell.
+ * @param target_sro [in] Array of SRO values for each shell.
  * @param coefficients [out] Array to store the computed SRO coefficients.
  * @param fitness [out] Array to store the computed fitness values for each lattice.
  * @param lattices [in] Array of lattices, each containing num_atoms atoms.
@@ -81,7 +81,7 @@ __global__ void calculate_fitness_of_lattices(
         Integer num_atoms, Integer num_types, Integer num_shells,
         const Integer* neighbor_list, const Integer* neighbor_list_indices, 
         const Integer* species, const Real* weights, 
-        const Real* sro, Real* coefficients, 
+        const Real* target_sro, Real* coefficients, 
         Real* fitness, Integer* lattices)
 {
     const Integer bid = blockIdx.x;
@@ -122,13 +122,13 @@ __global__ void calculate_fitness_of_lattices(
 
     Real error = 0.0;
     for (Integer shell = 0; shell < num_shells; ++shell) {
-        Real target_sro = 0.0;
         Real fitness_shell = 0.0;
         for (Integer ii = 0; ii < num_types; ++ii) {
             for (Integer jj = 0; jj < num_types; ++jj) {
                 Integer index = ii * num_types * num_shells + jj * num_shells + shell;
                 Real sro = 1 - shared_gamma[index] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
-                fitness_shell += (sro - target_sro) * (sro - target_sro);
+                Real shell_sro = target_sro[shell * num_types * num_types + ii * num_types + jj];
+                fitness_shell += (sro - shell_sro) * (sro - shell_sro);
             }
         }
         // Weighted sum of error across shells
@@ -255,7 +255,7 @@ Real calculate_fitness(
     const Integer& num_atoms,
     const Integer* species, const Real* weights,
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
-    const Real* sro, Real* coefficients,
+    const Real* target_sro, Real* coefficients,
     LOW_Integer* lattice)
 {
     // Define the number of coefficients
@@ -298,13 +298,13 @@ Real calculate_fitness(
     // Fitness calculation
     Real fitness = 0.0;
     for (Integer shell = 0; shell < NUM_SHELLS; ++shell) {
-        Real target_sro = 0.0;
         Real fitness_shell = 0.0;
         for (Integer ii = 0; ii < NUM_TYPES; ++ii) {
             for (Integer jj = 0; jj < NUM_TYPES; ++jj) {
                 Integer index = ii * NUM_TYPES * NUM_SHELLS + jj * NUM_SHELLS + shell;
                 Real sro = 1 - gamma[index] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
-                fitness_shell += (sro - target_sro) * (sro - target_sro);
+                Real shell_sro = target_sro[shell * NUM_TYPES * NUM_TYPES + ii * NUM_TYPES + jj];
+                fitness_shell += (sro - shell_sro) * (sro - shell_sro);
             }
         }
         // Weighted sum of fitness across shells
@@ -323,7 +323,7 @@ Real calculate_fitness_incremental(
     const Integer& num_atoms,
     const Integer* species, const Real* weights,
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
-    const Real* sro, Real* coefficients,
+    const Real* target_sro, Real* coefficients,
     LOW_Integer* lattice)
 {
     // Define the number of coefficients
@@ -393,13 +393,13 @@ Real calculate_fitness_incremental(
     // Fitness calculation
     Real fitness = 0.0;
     for (Integer shell = 0; shell < NUM_SHELLS; ++shell) {
-        Real target_sro = 0.0;
         Real fitness_shell = 0.0;
         for (Integer ii = 0; ii < NUM_TYPES; ++ii) {
             for (Integer jj = 0; jj < NUM_TYPES; ++jj) {
                 Integer index = ii * NUM_TYPES * NUM_SHELLS + jj * NUM_SHELLS + shell;
                 Real sro = 1 - gamma[index] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
-                fitness_shell += (sro - target_sro) * (sro - target_sro);
+                Real shell_sro = target_sro[shell * NUM_TYPES * NUM_TYPES + ii * NUM_TYPES + jj];
+                fitness_shell += (sro - shell_sro) * (sro - shell_sro);
             }
         }
         // Weighted sum of fitness across shells
@@ -417,7 +417,7 @@ __global__ void parallel_monte_carlo(
     const Integer num_atoms,
     const Integer* species, const Real* weights,
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
-    const Real* sro,
+    const Real* target_sro,
     Real* fitness, Integer* lattices)
 {
     extern __shared__ Real shared[];
@@ -477,9 +477,9 @@ __global__ void parallel_monte_carlo(
 
         // Calculate fitness incrementally
         shared_fitness[tid] = calculate_fitness_incremental<Integer, Real, LOW_Integer, LOW_Real, NUM_TYPES, NUM_SHELLS>(
-            atom1, atom2, num_atoms, species, weights, neighbor_list, neighbor_list_indices, sro, coefficients, shared_lattice);
+            atom1, atom2, num_atoms, species, weights, neighbor_list, neighbor_list_indices, target_sro, coefficients, shared_lattice);
         // shared_fitness[tid] = calculate_fitness<Integer, Real, LOW_Integer, LOW_Real, NUM_TYPES, NUM_SHELLS>(
-            // atom1, atom2, num_atoms, species, weights, neighbor_list, neighbor_list_indices, sro, coefficients, shared_lattice);
+            // atom1, atom2, num_atoms, species, weights, neighbor_list, neighbor_list_indices, target_sro, coefficients, shared_lattice);
 
         Integer id = locate_best_fitness(shared_fitness, shared_indices);
 
@@ -556,7 +556,7 @@ void generate_random_lattices(
         Integer num_types, Integer num_atoms, Integer num_shells,
         const Integer* species, const Real* weights,
         const Integer* neighbor_list, const Integer* neighbor_list_indices,
-        const Real* sro, Real* coefficients,
+        const Real* target_sro, Real* coefficients,
         Real* fitness, Integer* lattices)
 {
     generate_normal_lattices<<<num_lattices, THREADS_PER_BLOCK>>>(
@@ -572,7 +572,7 @@ void generate_random_lattices(
     // Calculate fitness
     calculate_fitness_of_lattices<<<num_lattices, THREADS_PER_BLOCK, num_types * num_types * num_shells * 3 * sizeof(Real)>>>(
         /* inputs  */ num_atoms, num_types, num_shells, neighbor_list, neighbor_list_indices, species, weights, 
-        /* outputs */ sro, coefficients, fitness, lattices);
+        /* outputs */ target_sro, coefficients, fitness, lattices);
 }
 
 /**
@@ -597,50 +597,96 @@ void local_parallel_monte_carlo(
     const Integer& search_depth, const Real& threshold,    
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
     const Integer* species, const Real* weights,
-    const Real* sro,
+    const Real* target_sro,
     Real* fitness, Integer* lattices)
 {
     unsigned long long seed = get_microseconds();
     const int num_coefficients = num_types * num_types * num_shells;
     const size_t shared_usage = 2 * num_tasks * sizeof(Integer) 
-        + num_atoms * sizeof(uint16_t)
+        + num_atoms * sizeof(uint8_t)
         + num_tasks * sizeof(Real)
         + num_coefficients * sizeof(Real);
+
+    // Get device properties to check maximum shared memory
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
+    // Set maximum shared memory for the kernel
+    cudaFuncAttributes attr;
+    if (num_types == 3 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 4 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 5 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 6 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 4 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    } else if (num_types == 5 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
+    }
+
+    // Check if shared memory requirement exceeds maximum available
+    if (shared_usage > prop.sharedMemPerBlockOptin) {
+        std::cerr << "Error: Required shared memory (" << shared_usage 
+                 << " bytes) exceeds maximum available shared memory (" 
+                 << prop.sharedMemPerBlockOptin << " bytes)" << std::endl;
+        exit(1);
+    }
     
     if (     num_types == 3 && num_shells == 3) {
-        parallel_monte_carlo<Integer, Real, uint16_t, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
+        parallel_monte_carlo<Integer, Real, uint8_t, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     }
     else if (num_types == 4 && num_shells == 3) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 5 && num_shells == 3) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 6 && num_shells == 3) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     }
     else if (num_types == 4 && num_shells == 2) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 5 && num_shells == 2) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 5, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     } 
     else if (num_types == 6 && num_shells == 2) {
         parallel_monte_carlo<Integer, Real, uint8_t, Real, 6, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ sro, fitness, lattices);
+            /* outputs */ target_sro, fitness, lattices);
     } 
     else {
         std::cerr << "GPU implementation is not available for the given number of types " << num_types 
@@ -680,17 +726,17 @@ run_local_parallel_hcs_cuda(
         const double threshold,
         const std::vector<std::vector<std::vector<int>>>& neighbor_list,
         const std::vector<int>& host_species,
-        const std::vector<double>& host_weights)
+        const std::vector<double>& host_weights,
+        const std::vector<std::vector<double>>& host_target_sro)
 {
     // Flatten neighbor_list for easier copying to device
     int idx = 0;
     const int num_shells = host_weights.size();
     const int num_types  = host_species.size();
     const int num_atoms  = std::accumulate(host_species.begin(), host_species.end(), 0);
-    const int num_coefficients = num_types * num_types * num_shells * 3;
+    const int num_coefficients = num_types * num_types * num_shells;
     std::vector<int> host_flat_nbor;
     std::vector<int> host_flat_nbor_idx;
-    std::vector<int> h_sro(num_shells, 0);
     for (const auto& shell : neighbor_list) {
         int count = 0;
         for (const auto& neighbor_list : shell) {
@@ -704,9 +750,14 @@ run_local_parallel_hcs_cuda(
         }
     }
     host_flat_nbor_idx.push_back(idx);
+    // Flatten target SRO for device
+    std::vector<float> host_flat_target_sro;
+    for (const auto& shell_sro : host_target_sro) {
+        host_flat_target_sro.insert(host_flat_target_sro.end(), shell_sro.begin(), shell_sro.end());
+    }
 
     int *species = nullptr, *flat_nbor = nullptr, *flat_nbor_idx = nullptr, *lattices = nullptr, *new_lattices = nullptr;
-    float *weights = nullptr, *fitness = nullptr, *new_fitness = nullptr, *sro = nullptr, *coefficients = nullptr;
+    float *weights = nullptr, *fitness = nullptr, *new_fitness = nullptr, *target_sro = nullptr, *coefficients = nullptr;
 
     cudaMalloc(&species, host_species.size() * sizeof(int));
     cudaMemcpy( species, host_species.data(), host_species.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -733,13 +784,14 @@ run_local_parallel_hcs_cuda(
     cudaMemcpy( flat_nbor, host_flat_nbor.data(), host_flat_nbor.size() * sizeof(int), cudaMemcpyHostToDevice);
     cudaMalloc(&flat_nbor_idx, host_flat_nbor_idx.size() * sizeof(int));
     cudaMemcpy( flat_nbor_idx, host_flat_nbor_idx.data(), host_flat_nbor_idx.size() * sizeof(int), cudaMemcpyHostToDevice);
-    
-    cudaMalloc(&sro, num_shells * sizeof(float));
-    cudaMemcpy( sro, h_sro.data(), h_sro.size() * sizeof(float), cudaMemcpyHostToDevice);
     cudaMalloc(&coefficients, num_lattices * num_coefficients * sizeof(float));
 
+    // Allocate device memory for target SRO
+    cudaMalloc(&target_sro, host_flat_target_sro.size() * sizeof(float));
+    cudaMemcpy(target_sro, host_flat_target_sro.data(), host_flat_target_sro.size() * sizeof(float), cudaMemcpyHostToDevice);
+
     generate_random_lattices(
-        /* inputs  */ num_lattices, num_types, num_atoms, num_shells, species, weights, flat_nbor, flat_nbor_idx, sro, coefficients, 
+        /* inputs  */ num_lattices, num_types, num_atoms, num_shells, species, weights, flat_nbor, flat_nbor_idx, target_sro, coefficients, 
         /* outputs */ fitness, lattices);
 
     std::vector<float> host_fitness(num_lattices, 0);
@@ -749,17 +801,17 @@ run_local_parallel_hcs_cuda(
     for (int ii = 0; ii < num_iters; ii++) {
         // Perpuatation: Generate new lattices randomly
         generate_random_lattices(
-            /* inputs  */ num_lattices, num_types, num_atoms, num_shells, species, weights, flat_nbor, flat_nbor_idx, sro, coefficients, 
+            /* inputs  */ num_lattices, num_types, num_atoms, num_shells, species, weights, flat_nbor, flat_nbor_idx, target_sro, coefficients, 
             /* outputs */ new_fitness, new_lattices);
         // Local Search  I: Perform local parallel Monte Carlo optimization
         local_parallel_monte_carlo(
-            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, sro,
+            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, target_sro,
             /* outputs */ new_fitness, new_lattices);
         // Ranking: Calculate the best lattices and update the fitness values
         calculate_best_lattices(num_lattices, num_atoms, lattices, new_lattices, fitness, new_fitness);
         // Local Search II: Perform local parallel Monte Carlo optimization
         local_parallel_monte_carlo(
-            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, sro,
+            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, target_sro,
             /* outputs */ fitness, lattices);
         cudaMemcpy(host_fitness.data(), fitness, sizeof(float), cudaMemcpyDeviceToHost);
         auto now = std::chrono::system_clock::now();
@@ -791,7 +843,7 @@ run_local_parallel_hcs_cuda(
     cudaFree(flat_nbor);
     cudaFree(flat_nbor_idx);
 
-    cudaFree(sro);
+    cudaFree(target_sro);
     cudaFree(coefficients);
 
     return std::make_tuple(final_lattices, final_fitness);

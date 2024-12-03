@@ -1,0 +1,28 @@
+# Target Short-Range Order (SRO) Parameters for High-Entropy Alloy
+# --------------------------------------------------------
+# Format: Upper triangular matrix for 3 atom types (Fe-Mn-Cr)
+#
+# Matrix interpretation:
+#   - Positive values: Promote clustering (like neighbors preferred)
+#   - Negative values: Promote ordering (unlike neighbors preferred)
+#   - Zero values: Random distribution
+#
+# First Shell Configuration:
+#   - Slight Fe-Fe clustering (0.1)
+#   - Fe-Mn ordering (-0.1)
+#   - Mn-Mn slight clustering (0.05)
+#   - Random distribution for Cr interactions
+#
+# Row 1: Fe-Fe
+# Row 2: Fe-Mn  Mn-Mn
+# Row 3: Fe-Cr  Mn-Cr  Cr-Cr
+
+First Shell
+0.1
+-0.1 0.05
+0.0 0.0 0.0
+
+Second Shell
+0.05
+-0.05 0.025
+0.0 0.0 0.0

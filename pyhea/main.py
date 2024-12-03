@@ -6,18 +6,17 @@ It handles command-line argument parsing, configuration loading, and initializat
 simulation components.
 
 @author Caimei Niu
-@version 1.0
 """
 
 import time
 import argparse
 
-from hea.lattice import lattice
-from hea.io import input_config
-from hea.model import opt_model
-from hea.utils import logger
-from hea.comm import comm
-from hea.version import __version__
+from pyhea.lattice import lattice
+from pyhea.io import input_config
+from pyhea.model import opt_model
+from pyhea.utils import logger, analyze_sro_results
+from pyhea.comm import comm
+from pyhea.version import __version__
 
 def main():
     """ Main function to run the PyHEA lattice simulation.
@@ -48,14 +47,16 @@ def main():
     args = parser.parse_args()
 
     logger.info("PyHEA: A High performance implementation for building the High Entropy Alloys Model.")
-    logger.info("""\n
-             PyHEA  
-        ╔═════════════╗
-        ║   Fe   Ni   ║   A High performance implementation of building the High Entropy Alloys Models,
-        ║      Mn     ║   
-        ║   Al   Co   ║   Developed by Caimei Niu.
-        ╚═════════════╝
-            """
+    logger.info("""#nocutoff \n
+              PyHEA      
+        ╔═══════════════╗   
+        ║               ║
+        ║    Fe   Ni    ║   A High performance implementation of building
+        ║       Mn      ║   the High Entropy Alloys Models.
+        ║    Al   Co    ║ 
+        ║               ║   Developed by Caimei Niu.
+        ╚═══════════════╝   
+    """
     )
 
     logger.info(f"Running the PyHEA lattice simulation with the configuration file: {args.config}")
@@ -70,7 +71,8 @@ def main():
     logger.info(f"{'Total iterations:':<30} {config.total_iter}")
     logger.info(f"{'Convergence depth:':<30} {config.converge_depth}")
     logger.info(f"{'Parallel Monte Carlo tasks:':<30} {config.parallel_task}")
-    logger.info(f"{'Running with MPI processes:':<30} {comm.Get_size()}")
+    logger.info(f"{'Running with processes:':<30} {comm.Get_size()}")
+    logger.info(f"{'Target SRO:'} {config.target_sro.tolist()}")
     logger.info(f"{'Lattice structure:'} {config.structure}\n\n")
 
     # Continue with the rest of the code using the config
@@ -81,11 +83,22 @@ def main():
         config.latt_const,
         config.latt_vectors,
         valid=True)
-
+    
     start = time.time()
     model = opt_model(lattice_instance, config, comm)
     solutions, fitness = model.run_optimization()
-    logger.info(f"Total time taken: {time.time() - start} seconds.")
+    logger.info(f"Total time taken: {time.time() - start} seconds.\n\n")
+
+    # Analyze SRO parameters and compare with target values
+    logger.info("Post-processing: Analyzing SRO parameters...")
+    if comm.Get_rank() == 0:  # Only analyze on root process
+        actual_sro, mae, rmse = \
+        analyze_sro_results(
+            f'{config.output_name}.{config.output_format}',
+            config.target_sro,
+            config.element,
+            config.latt_type
+        )
 
 if __name__ == "__main__":
     main()

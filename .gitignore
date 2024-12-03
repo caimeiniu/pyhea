@@ -68,7 +68,6 @@ Thumbs.db
 
 # Project specific
 *.log
-*.txt
 POSCAR
 FINAL_POSCAR
 running_hea.log

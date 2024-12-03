@@ -1,5 +1,5 @@
 import numpy as np
-from hea.utils.logger import logger
+from pyhea.utils.logger import logger
 
 # Define constants for the number of neighbors per shell in BCC lattice
 BCC_NUM_NEIGHBORS_SHELL1 = 8
