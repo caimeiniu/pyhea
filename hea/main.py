@@ -1,4 +1,4 @@
-"""! @file
+""" @file
 @brief Main entry point for the PyHEA (High Entropy Alloys Model) simulation.
 
 This module serves as the main entry point for running the High Entropy Alloys Model simulation.
@@ -17,9 +17,10 @@ from hea.io import input_config
 from hea.model import opt_model
 from hea.utils import logger
 from hea.comm import comm
+from hea.version import __version__
 
 def main():
-    """! Main function to run the PyHEA lattice simulation.
+    """ Main function to run the PyHEA lattice simulation.
     
     This function performs the following operations:
     1. Parses command-line arguments
@@ -42,7 +43,7 @@ def main():
     parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration YAML file.')
     # Automatically adds --help functionality.
     # Adding --version option
-    parser.add_argument('--version', action='version', version='PyHEA 1.0')
+    parser.add_argument('--version', action='version', version=f'PyHEA {__version__}')
     # Parse the arguments
     args = parser.parse_args()
 
@@ -78,6 +79,7 @@ def main():
         config.cell_dim,
         config.latt_type,
         config.latt_const,
+        config.latt_vectors,
         valid=True)
 
     start = time.time()

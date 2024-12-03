@@ -16,6 +16,7 @@ import shutil
 import os
 import sys
 from pathlib import Path
+from hea.version import __version__, __author__, __description__
 
 class CMakeExtension(Extension):
     """
@@ -122,9 +123,9 @@ class CMakeBuild(build_ext):
 
 setup(
     name="pyhea",
-    version="1.0.0",
-    author="Charmy Niu",
-    description="A High performance implementation for building the High Entropy Alloys Model",
+    version=__version__,
+    author=__author__,
+    description=__description__,
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     packages=find_packages(),

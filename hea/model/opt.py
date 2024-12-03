@@ -1,4 +1,5 @@
 from hea.utils.logger import logger
+from hea.version import __version__  # Import version information
 try:
     from hea.cpp import accelerate as acc
 except ImportError:
@@ -6,21 +7,47 @@ except ImportError:
     raise
 
 def file_final_results(nest, latt, ntyp, elem, file):
+    """Write the final results to a VASP-like POSCAR file.
+    
+    Args:
+        nest: List of atom types
+        latt: Lattice object containing vectors and coordinates
+        ntyp: Number of atom types
+        elem: List of elements (will be replaced with A, B, C, ...)
+        file: Output file name
+    """
     natm = len(nest)
     coords = [""] * ntyp  # List to store coordinate strings for each type of atom
     
-    with open(file, "w") as final_coords:  # Writes the final SCRAPS supercell to the specified output file
-        final_coords.write("Generated-by-PyHEA\tv0.1\n")
-        final_coords.write(f"{latt.latt_vec[0]}\t{latt.latt_vec[0]}\t{latt.latt_vec[0]}\n")
-        final_coords.write(f"{latt.latt_vec[1]}\t{latt.latt_vec[1]}\t{latt.latt_vec[1]}\n")
-        final_coords.write(f"{latt.latt_vec[2]}\t{latt.latt_vec[2]}\t{latt.latt_vec[2]}\n")
-
-        final_coords.write("   ".join(map(str, elem)) + "\n")
+    # Count atoms of each type
+    atom_counts = [0] * ntyp
+    for i in range(natm):
+        atom_counts[nest[i]] += 1
+    
+    # Generate element labels (A, B, C, ...)
+    element_labels = [chr(65 + i) for i in range(ntyp)]  # 65 is ASCII for 'A'
+    
+    with open(file, "w") as final_coords:
+        # Write header with version
+        final_coords.write(f"PyHEA v{__version__}\n")
+        # Write scaling factor (1.0 for Cartesian coordinates)
+        final_coords.write(f"{latt.latt_con}\n")
+        # Write lattice vectors correctly
+        final_coords.write(f"{latt.latt_vec[0][0]}\t{latt.latt_vec[0][1]}\t{latt.latt_vec[0][2]}\n")
+        final_coords.write(f"{latt.latt_vec[1][0]}\t{latt.latt_vec[1][1]}\t{latt.latt_vec[1][2]}\n")
+        final_coords.write(f"{latt.latt_vec[2][0]}\t{latt.latt_vec[2][1]}\t{latt.latt_vec[2][2]}\n")
+        # Write element labels
+        final_coords.write("   ".join(element_labels) + "\n")
+        # Write atom counts
+        final_coords.write("   ".join(map(str, atom_counts)) + "\n")
+        # Write coordinate type
         final_coords.write("Cartesian\n")
         
+        # Collect coordinates by type
         for i in range(natm):
             coords[nest[i]] += f"{latt.coords[i][0]}\t{latt.coords[i][1]}\t{latt.coords[i][2]}\n"
         
+        # Write coordinates for each type
         for i in range(ntyp):
             final_coords.write(coords[i])
 

@@ -1,14 +1,13 @@
-type: 5
+type: 4
 element:
-  - 800
-  - 800
-  - 800
-  - 800
-  - 800
+  - 32
+  - 32
+  - 32
+  - 32
 cell_dim:
-  - 10
-  - 10
-  - 10
+  - 4
+  - 4
+  - 4
 device: gpu
 solutions: 128
 total_iter: 10
@@ -18,4 +17,4 @@ weight:
   - 4.0
   - 1.0
   - 0.5
-structure: POSCAR_FCC
+structure: POSCAR_BCC
