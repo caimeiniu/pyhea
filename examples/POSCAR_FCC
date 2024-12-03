@@ -1,11 +1,11 @@
 FCC structure    # comment line
-1                # lattice constant (scaling factor)
-0.0 0.5 0.5      # first  Bravais lattice vector
-0.5 0.0 0.5      # second Bravais lattice vector
-0.5 0.5 0.0      # third  Bravais lattice vector
-4                # number of atoms per species
+3.615            # universal scaling factor
+1.0 0.0 0.0      # first  Bravais lattice vector
+0.0 1.0 0.0      # second Bravais lattice vector
+0.0 0.0 1.0      # third  Bravais lattice vector
+4                # number of atoms
 direct           # direct or cart (only first letter is significant)
-0.0 0.0 0.0      # positions of the first atom
-0.0 0.5 0.5      # positions of the second atom
-0.5 0.0 0.5      # positions of the third atom
-0.5 0.5 0.0      # positions of the fourth atom
+0.0 0.0 0.0      # positions
+0.0 0.5 0.5
+0.5 0.0 0.5
+0.5 0.5 0.0

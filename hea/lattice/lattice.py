@@ -20,7 +20,7 @@ class lattice:
     calculate periodic boundary conditions, build neighbor lists, and validate
     neighbor relationships based on shell distances.
     """
-    def __init__(self, cell_dim, latt_typ, latt_con, valid=False):
+    def __init__(self, cell_dim, latt_typ, latt_con, latt_vec,valid=False):
         """
         Initializes the lattice object.
 
@@ -30,22 +30,25 @@ class lattice:
         # BCC lattice has 2 atoms per unit cell
         self.latt_typ  = latt_typ
         self.cell_dim  = cell_dim[0]
-        self.latt_con  = np.float16(latt_con)
-        self.latt_vec  = np.array([self.cell_dim * latt_con] * 3, dtype=np.float16)
+        self.latt_con  = np.array(latt_con, dtype=np.float16)
+        self.latt_vec  = np.array([
+            [self.cell_dim, 0, 0], 
+            [0, self.cell_dim, 0], 
+            [0, 0, self.cell_dim]], dtype=np.float16)
         
         if   self.latt_typ == 'FCC':
             # Generate FCC lattice
-            self.coords    = self.calc_supercell_fcc(self.cell_dim, latt_con)
-            self.nbor_list = self.build_neighbor_list_fcc(self.cell_dim, latt_con)
+            self.coords    = self.calc_supercell_fcc(self.cell_dim)
+            self.nbor_list = self.build_neighbor_list_fcc(self.cell_dim)
         elif self.latt_typ == 'BCC':
             # Generate BCC lattice
-            self.coords    = self.calc_supercell_bcc(self.cell_dim, latt_con)
-            self.nbor_list = self.build_neighbor_list_bcc(self.cell_dim, latt_con)
+            self.coords    = self.calc_supercell_bcc(self.cell_dim)
+            self.nbor_list = self.build_neighbor_list_bcc(self.cell_dim)
         else:
             raise ValueError(f"Invalid lattice type: {self.latt_typ}")
         
         if valid:
-            self.valid_nbors(self.coords, self.cell_dim, latt_con, latt_typ, self.nbor_list)
+            self.valid_nbors(self.coords, self.cell_dim, latt_typ, self.nbor_list)
 
     def calc_pbc(self, coord):
         """
@@ -54,7 +57,7 @@ class lattice:
         @param coord The coordinate of the atom.
         @return The coordinate adjusted for periodic boundary conditions.
         """
-        return coord - np.floor(coord / self.latt_vec) * self.latt_vec
+        return coord - np.floor(coord / np.diag(self.latt_vec)) * np.diag(self.latt_vec)
 
 
     def calc_pbc_dist(self, a, b):
@@ -66,8 +69,8 @@ class lattice:
         @return The periodic boundary condition distance between the two atoms.
         """
         delta = a - b
-        delta = np.where(delta > self.latt_vec / np.float16(2.0), delta - self.latt_vec, delta)
-        delta = np.where(delta < -self.latt_vec / np.float16(2.0), delta + self.latt_vec, delta)
+        delta = np.where(delta > np.diag(self.latt_vec / np.float16(2.0)), delta - np.diag(self.latt_vec), delta)
+        delta = np.where(delta < -np.diag(self.latt_vec / np.float16(2.0)), delta + np.diag(self.latt_vec), delta)
         return np.sqrt(np.sum(delta ** 2, axis=-1)).astype(np.float16)
 
 
@@ -81,15 +84,15 @@ class lattice:
         """
         natms = cell_dim ** 3 * 2
         # Calculate the indices of the unit cell along each dimension
-        xx = int(coord[0] // self.latt_con)
-        yy = int(coord[1] // self.latt_con)
-        zz = int(coord[2] // self.latt_con)
+        xx = int(coord[0])
+        yy = int(coord[1])
+        zz = int(coord[2])
 
         # Calculate the relative position within the unit cell to determine the atom type (0 or 1)
         # BCC unit cell has 2 atoms: (0,0,0), (0.5,0.5,0.5)
-        __xx = np.mod(coord[0] / self.latt_con, 1)
-        __yy = np.mod(coord[1] / self.latt_con, 1)
-        __zz = np.mod(coord[2] / self.latt_con, 1)
+        __xx = np.mod(coord[0], 1)
+        __yy = np.mod(coord[1], 1)
+        __zz = np.mod(coord[2], 1)
 
         if   __xx == 0.0 and __yy == 0.0 and __zz == 0.0:
             loc = 0   # (0.0, 0.0, 0.0)
@@ -114,15 +117,15 @@ class lattice:
         """
         natms = cell_dim ** 3 * 4
         # Calculate the indices of the unit cell along each dimension
-        xx = int(coord[0] // self.latt_con)
-        yy = int(coord[1] // self.latt_con)
-        zz = int(coord[2] // self.latt_con)
+        xx = int(coord[0])
+        yy = int(coord[1])
+        zz = int(coord[2])
 
         # Calculate the relative position within the unit cell to determine the atom type (0 to 3)
         # FCC unit cell has 4 atoms: (0,0,0), (0.5,0.5,0), (0.5,0,0.5), (0,0.5,0.5)
-        __xx = np.mod(coord[0] / self.latt_con, 1)
-        __yy = np.mod(coord[1] / self.latt_con, 1)
-        __zz = np.mod(coord[2] / self.latt_con, 1)
+        __xx = np.mod(coord[0], 1)
+        __yy = np.mod(coord[1], 1)
+        __zz = np.mod(coord[2], 1)
 
         if   __xx == 0.0 and __yy == 0.0 and __zz == 0.0:
             loc = 0  # (0.0, 0.0, 0.0)
@@ -140,12 +143,11 @@ class lattice:
         
         return id % natms
 
-    def calc_supercell_bcc(self, cell_dim, latt_con):
+    def calc_supercell_bcc(self, cell_dim):
         """
         Generates the atomic coordinates for a BCC supercell.
         
         @param cell_dim The dimension of the supercell grid (e.g., 4 for a 4x4x4 grid).
-        @param latt_con The lattice constant, representing the distance between atoms in the lattice.
 
         @return A NumPy array containing the coordinates of all atoms in the BCC supercell.
         """
@@ -156,19 +158,18 @@ class lattice:
             for iy in range(cell_dim):
                 for iz in range(cell_dim):
                     # First atom at (0,0,0)
-                    coords[id] = [(ix + 0.0) * latt_con, (iy + 0.0) * latt_con, (iz + 0.0) * latt_con]
+                    coords[id] = [(ix + 0.0), (iy + 0.0), (iz + 0.0)]
                     id += 1
                     # Second atom at (0.5,0.5,0.5)
-                    coords[id] = [(ix + 0.5) * latt_con, (iy + 0.5) * latt_con, (iz + 0.5) * latt_con]
+                    coords[id] = [(ix + 0.5), (iy + 0.5), (iz + 0.5)]
                     id += 1
         return coords
 
-    def calc_supercell_fcc(self, cell_dim, latt_con):
+    def calc_supercell_fcc(self, cell_dim):
         """
         Generates the atomic coordinates for an FCC supercell.
         
         @param cell_dim The dimension of the supercell grid (e.g., 4 for a 4x4x4 grid).
-        @param latt_con The lattice constant, representing the distance between atoms in the lattice.
 
         @return A NumPy array containing the coordinates of all atoms in the FCC supercell.
         """
@@ -179,20 +180,20 @@ class lattice:
             for iy in range(cell_dim):
                 for iz in range(cell_dim):
                     # First atom at (0,0,0)
-                    coords[id] = [(ix + 0.0) * latt_con, (iy + 0.0) * latt_con, (iz + 0.0) * latt_con]
+                    coords[id] = [(ix + 0.0), (iy + 0.0), (iz + 0.0)]
                     id += 1
                     # Second atom at (0.5,0.5,0)
-                    coords[id] = [(ix + 0.5) * latt_con, (iy + 0.5) * latt_con, (iz + 0.0) * latt_con]
+                    coords[id] = [(ix + 0.5), (iy + 0.5), (iz + 0.0)]
                     id += 1
                     # Third atom at (0.5,0,0.5)
-                    coords[id] = [(ix + 0.5) * latt_con, (iy + 0.0) * latt_con, (iz + 0.5) * latt_con]
+                    coords[id] = [(ix + 0.5), (iy + 0.0), (iz + 0.5)]
                     id += 1
                     # Fourth atom at (0,0.5,0.5)
-                    coords[id] = [(ix + 0.0) * latt_con, (iy + 0.5) * latt_con, (iz + 0.5) * latt_con]
+                    coords[id] = [(ix + 0.0), (iy + 0.5), (iz + 0.5)]
                     id += 1
         return coords
 
-    def build_neighbor_list_bcc(self, cell_dim, latt_con):
+    def build_neighbor_list_bcc(self, cell_dim):
         """
         Builds the neighbor list for each atom in the BCC lattice.
 
@@ -206,18 +207,18 @@ class lattice:
         neighbor_vectors_shell1 = np.array([
             [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, -0.5],
             [-0.5, -0.5, 0.5], [0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [-0.5, -0.5, -0.5]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         neighbor_vectors_shell2 = np.array([
             [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, -1.0, 0.0],
             [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         neighbor_vectors_shell3 = np.array([
             [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, -1.0, 0.0],
             [1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [1.0, 0.0, -1.0], [-1.0, 0.0, -1.0],
             [0.0, 1.0, 1.0], [0.0, -1.0, 1.0], [0.0, 1.0, -1.0], [0.0, -1.0, -1.0]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         # Assign neighbors for each atom
         for id in range(natms):
@@ -257,7 +258,7 @@ class lattice:
 
         return nbor
 
-    def build_neighbor_list_fcc(self, cell_dim, latt_con):
+    def build_neighbor_list_fcc(self, cell_dim):
         """
         Builds the neighbor list for each atom in the FCC lattice.
 
@@ -272,18 +273,18 @@ class lattice:
             [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0], [0.5, -0.5, 0.0], [-0.5, -0.5, 0.0],
             [0.5, 0.0, 0.5], [-0.5, 0.0, 0.5], [0.5, 0.0, -0.5], [-0.5, 0.0, -0.5],
             [0.0, 0.5, 0.5], [0.0, -0.5, 0.5], [0.0, 0.5, -0.5], [0.0, -0.5, -0.5]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         neighbor_vectors_shell2 = np.array([
             [1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, -1.0, 0.0],
             [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         neighbor_vectors_shell3 = np.array([
             [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, -1.0, 0.0],
             [1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [1.0, 0.0, -1.0], [-1.0, 0.0, -1.0],
             [0.0, 1.0, 1.0], [0.0, -1.0, 1.0], [0.0, 1.0, -1.0], [0.0, -1.0, -1.0]
-        ], dtype=np.float16) * latt_con
+        ], dtype=np.float16)
 
         # Assign neighbors for each atom
         for id in range(natms):
@@ -322,7 +323,7 @@ class lattice:
         return nbor
     
 
-    def valid_nbors_bcc(self, coords, cell_dim, latt_con, nbor_list):
+    def valid_nbors_bcc(self, coords, cell_dim, nbor_list):
         """
         Validates the neighbor list for the BCC lattice.
 
@@ -330,9 +331,9 @@ class lattice:
         neighbors against expected distances for three neighbor shells. It reports
         any discrepancies and prints whether the neighbor list validation passed.
         """
-        shell1 = np.sqrt(np.float16(3.0)) * latt_con / np.float16(2.0)
-        shell2 = latt_con
-        shell3 = np.sqrt(np.float16(2.0)) * latt_con
+        shell1 = np.sqrt(np.float16(3.0)) / np.float16(2.0)
+        shell2 = 1
+        shell3 = np.sqrt(np.float16(2.0))
 
         natms = cell_dim ** 3 * 2
         
@@ -369,7 +370,7 @@ class lattice:
         else:
             logger.info("Neighbor list validation failed.")
 
-    def valid_nbors_fcc(self, coords, cell_dim, latt_con, nbor_list):
+    def valid_nbors_fcc(self, coords, cell_dim, nbor_list):
         """
         Validates the neighbor list for the FCC lattice.
 
@@ -377,9 +378,9 @@ class lattice:
         neighbors against expected distances for three neighbor shells. It reports
         any discrepancies and prints whether the neighbor list validation passed.
         """
-        shell1 = latt_con / np.float16(np.sqrt(2.0))
-        shell2 = latt_con
-        shell3 = latt_con * np.float16(np.sqrt(2.0))
+        shell1 = 1.0 / np.float16(np.sqrt(2.0))
+        shell2 = 1.0
+        shell3 = 1.0 * np.float16(np.sqrt(2.0))
 
         natms = cell_dim ** 3 * 4
         
@@ -416,7 +417,7 @@ class lattice:
         else:
             logger.info("Neighbor list validation failed.")
     
-    def valid_nbors(self, coords, cell_dim, latt_con, latt_typ, nbor_list):
+    def valid_nbors(self, coords, cell_dim, latt_typ, nbor_list):
         """
         Validates the neighbor list for the lattice.
 
@@ -425,9 +426,9 @@ class lattice:
         any discrepancies and prints whether the neighbor list validation passed.
         """
         if   latt_typ == 'BCC':
-            self.valid_nbors_bcc(coords, cell_dim, latt_con, nbor_list)
+            self.valid_nbors_bcc(coords, cell_dim, nbor_list)
         elif latt_typ == 'FCC':
-            self.valid_nbors_fcc(coords, cell_dim, latt_con, nbor_list)
+            self.valid_nbors_fcc(coords, cell_dim, nbor_list)
         else:
             raise ValueError(f"Invalid lattice type: {latt_typ}")
     

@@ -113,6 +113,11 @@ class input_config:
     def _validate_config(self):
         if (len(self.element) != self.type or len(self.cell_dim) != 3):
             raise ValueError("The number of elements and cell dimensions must match the type and cell dimensions.")
+        
+        # Check for cubic cell dimensions
+        if not all(dim == self.cell_dim[0] for dim in self.cell_dim):
+            raise ValueError("Only cubic cell dimensions are supported. All dimensions must be equal.")
+            
         unknown_keys = set(self.config.keys()) - self.ALLOWED_KEYS
         if unknown_keys:
             raise ValueError(f"Unknown parameters found in the configuration: {unknown_keys}")
@@ -171,3 +176,7 @@ class input_config:
     @property
     def latt_const(self):
         return self.structure.get('lattice_constant', 0)
+    
+    @property
+    def latt_vectors(self):
+        return self.structure.get('lattice_vectors', [])
