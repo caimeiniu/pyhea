@@ -680,8 +680,15 @@ run_local_parallel_hcs_cuda(
         const double threshold,
         const std::vector<std::vector<std::vector<int>>>& neighbor_list,
         const std::vector<int>& host_species,
-        const std::vector<double>& host_weights)
+        const std::vector<double>& host_weights,
+        const std::vector<std::vector<double>>& host_target_sro)
 {
+    for (size_t ii = 0; ii < host_target_sro.size(); ii++) {
+        for (size_t jj = 0; jj < host_target_sro[ii].size(); jj++) {
+            std::cout << host_target_sro[ii][jj] << " ";
+        }
+        std::cout << std::endl;
+    }
     // Flatten neighbor_list for easier copying to device
     int idx = 0;
     const int num_shells = host_weights.size();

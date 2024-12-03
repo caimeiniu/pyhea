@@ -42,7 +42,7 @@ class input_config:
     # Allowed keys in the configuration file
     ALLOWED_KEYS = {
         'type', 'element', 'cell_dim', 'solutions', 'device', 'total_iter', 'weight',
-        'parallel_task', 'converge_depth', 'max_shell_num', 'structure', 'output'
+        'parallel_task', 'converge_depth', 'max_shell_num', 'structure', 'output', 'target_sro'
     }
 
     # Supported output formats
@@ -228,3 +228,82 @@ class input_config:
         """
         output_config = self.config.get('output', {})
         return output_config.get('name', 'output')
+
+    @property
+    def target_sro(self):
+        """Get the target SRO values from the specified file.
+        
+        Returns:
+            list[numpy.ndarray]: A list of arrays containing the target SRO values for each shell.
+            Always returns 3 shells, with default values of 0 if not specified in the file.
+            Each array has length num_types * (num_types + 1) / 2 for upper triangular format.
+        
+        Raises:
+            FileNotFoundError: If the specified target_sro file doesn't exist
+            ValueError: If the file format is invalid or values don't match the number of atom types
+        """
+        num_types = self.type
+        expected_length = (num_types * (num_types + 1)) // 2
+        
+        # Initialize default values: 3 shells of zeros
+        default_shell = np.zeros(expected_length)
+        default_shells = [default_shell.copy() for _ in range(3)]
+        
+        target_sro_file = self.config.get('target_sro', None)
+        if target_sro_file is None:
+            return default_shells
+            
+        current_dir = os.getcwd()
+        target_sro_file = os.path.join(current_dir, target_sro_file)
+        
+        try:
+            with open(target_sro_file, 'r') as f:
+                # Read all lines and filter out empty lines
+                all_lines = [line.strip() for line in f if line.strip()]
+                
+                # Initialize variables
+                current_shell = []
+                all_shells = []
+                shell_count = 0
+                
+                # Process each line
+                for line in all_lines:
+                    # Skip comment lines
+                    if line.startswith('#'):
+                        continue
+                        
+                    # If we find a shell marker, start a new shell
+                    if line.lower().startswith('second shell') or line.lower().startswith('shell'):
+                        if current_shell:
+                            if len(current_shell) != expected_length:
+                                raise ValueError(f"Shell {shell_count+1} has incorrect number of values. Expected {expected_length}, got {len(current_shell)}")
+                            all_shells.append(np.array(current_shell))
+                            shell_count += 1
+                            current_shell = []
+                        continue
+                    
+                    # Parse values
+                    try:
+                        values = list(map(float, line.split()))
+                        current_shell.extend(values)
+                    except ValueError:
+                        continue  # Skip lines that can't be parsed as floats
+                
+                # Add the last shell if it exists
+                if current_shell:
+                    if len(current_shell) != expected_length:
+                        raise ValueError(f"Shell {shell_count+1} has incorrect number of values. Expected {expected_length}, got {len(current_shell)}")
+                    all_shells.append(np.array(current_shell))
+                    shell_count += 1
+                
+                # Replace default shells with read values
+                for i, shell in enumerate(all_shells):
+                    if i < 3:  # Only use first 3 shells
+                        default_shells[i] = shell
+                
+                return default_shells
+                
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Target SRO file not found: {target_sro_file}")
+        except ValueError as e:
+            raise ValueError(f"Error parsing target SRO file: {str(e)}")

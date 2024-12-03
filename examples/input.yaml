@@ -16,6 +16,7 @@ weight:
   - 4.0
   - 1.0
   - 0.5
+target_sro: TARGET_SRO
 structure: POSCAR_FCC
 output:
   name: conf          # Output file name, default: output

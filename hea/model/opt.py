@@ -44,6 +44,7 @@ class opt_model:
         self.depth   = conf.converge_depth
         self.device  = conf.device
         self.element = conf.element
+        self.target_sro = conf.target_sro
 
         if (len(conf.weight) > latt.shells):
             logger.error("The number of weight is larger than the maximum number(shell) of neighbors.")
@@ -91,7 +92,7 @@ class opt_model:
             logger.info("Running on GPU devices")
             # Run the Local Parallel HCS algorithm
             latts, fitss = acc.run_local_parallel_hcs_cuda(
-                self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight)
+                self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight, self.target_sro)
         else:
             logger.error("Invalid device type. Please specify either 'cpu' or 'gpu'.")
             exit()

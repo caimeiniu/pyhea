@@ -80,6 +80,8 @@ def main():
         config.latt_const,
         config.latt_vectors,
         valid=True)
+    
+    print(config.target_sro)
 
     start = time.time()
     model = opt_model(lattice_instance, config, comm)
