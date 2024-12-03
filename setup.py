@@ -16,7 +16,7 @@ import shutil
 import os
 import sys
 from pathlib import Path
-from hea.version import __version__, __author__, __description__
+from pyhea.version import __version__, __author__, __description__
 
 class CMakeExtension(Extension):
     """
@@ -140,11 +140,11 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'hea=hea.main:main',
+            'pyhea=pyhea.main:main',
         ],
     },
     ext_modules=[
-        CMakeExtension("hea.cpp.accelerate", "hea/cpp")
+        CMakeExtension("pyhea.cpp.accelerate", "pyhea/cpp")
     ],
     cmdclass={
         "build_ext": CMakeBuild,

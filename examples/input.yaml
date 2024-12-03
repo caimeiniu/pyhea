@@ -16,8 +16,8 @@ weight:
   - 4.0
   - 1.0
   - 0.5
-target_sro: TARGET_SRO
+# target_sro: TARGET_SRO
 structure: POSCAR_FCC
 output:
-  name: conf          # Output file name, default: output
-  format: lammps/lmp  # Supported formats: vasp/poscar(default), lammps/lmp
+  name: output          # Output file name, default: output
+  format: vasp/poscar   # Supported formats: vasp/poscar(default), lammps/lmp

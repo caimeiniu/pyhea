@@ -11,12 +11,12 @@ simulation components.
 import time
 import argparse
 
-from hea.lattice import lattice
-from hea.io import input_config
-from hea.model import opt_model
-from hea.utils import logger, analyze_sro_results
-from hea.comm import comm
-from hea.version import __version__
+from pyhea.lattice import lattice
+from pyhea.io import input_config
+from pyhea.model import opt_model
+from pyhea.utils import logger, analyze_sro_results
+from pyhea.comm import comm
+from pyhea.version import __version__
 
 def main():
     """ Main function to run the PyHEA lattice simulation.
@@ -88,10 +88,10 @@ def main():
     start = time.time()
     model = opt_model(lattice_instance, config, comm)
     solutions, fitness = model.run_optimization()
-    logger.info(f"Total time taken: {time.time() - start} seconds.")
+    logger.info(f"Total time taken: {time.time() - start} seconds.\n\n")
 
     # Analyze SRO parameters and compare with target values
-    logger.info("\n\nPost-processing: Analyzing SRO parameters...")
+    logger.info("Post-processing: Analyzing SRO parameters...")
     if comm.Get_rank() == 0:  # Only analyze on root process
         actual_sro, mae, rmse = \
         analyze_sro_results(

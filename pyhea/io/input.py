@@ -251,7 +251,7 @@ class input_config:
         
         target_sro_file = self.config.get('target_sro', None)
         if target_sro_file is None:
-            return default_shells
+            return np.array([[0.0] * (num_types * num_types)] * 3)
             
         current_dir = os.getcwd()
         target_sro_file = os.path.join(current_dir, target_sro_file)

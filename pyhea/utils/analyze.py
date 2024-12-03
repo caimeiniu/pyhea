@@ -21,8 +21,9 @@ def calculate_sro(filename, latt_type):
         filename = filename.replace('lammps/lmp', 'lmp')
         pipeline = import_file(filename)
     elif filename.endswith('vasp/poscar'):
+        filename = filename.replace('vasp/poscar', 'poscar')
         data = dpdata.System(filename, fmt='vasp/poscar')
-        filename = filename.replace('vasp/poscar', 'lmp')
+        filename = filename.replace('poscar', 'lmp')
         data.to_lammps_lmp(filename)
         pipeline = import_file(filename)
         os.remove(filename)

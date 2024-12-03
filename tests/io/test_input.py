@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, mock_open
-from hea.io.input import input_config
+from pyhea.io.input import input_config
 import yaml
 
 class test_input_config(unittest.TestCase):
