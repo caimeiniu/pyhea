@@ -49,24 +49,24 @@ def plot_sro_heatmap(sro_values, atom_labels, output_file='sro_heatmap.png'):
     @param atom_labels list List of atom type labels
     @param output_file str Output file path for the plot
     """
-    plt.figure(figsize=(10, 8))  # Increased figure size
+    plt.figure(figsize=(9, 7))  # Increased figure size
     plt.imshow(sro_values, cmap='RdBu', vmin=-1, vmax=1)
     cbar = plt.colorbar(label='Warren-Cowley Parameter')
-    cbar.ax.tick_params(labelsize=12)  # Colorbar tick size
-    cbar.set_label('Warren-Cowley Parameter', size=14)  # Colorbar label size
+    cbar.ax.tick_params(labelsize=14)  # Colorbar tick size
+    cbar.set_label('Warren-Cowley Parameter', size=16)  # Colorbar label size
     
     # Add labels with increased font sizes
-    plt.xticks(range(len(atom_labels)), atom_labels, fontsize=12)
-    plt.yticks(range(len(atom_labels)), atom_labels, fontsize=12)
-    plt.xlabel('Atom Type', fontsize=14)
-    plt.ylabel('Atom Type', fontsize=14)
-    plt.title('Warren-Cowley Parameters (First Shell)', fontsize=16)
+    plt.xticks(range(len(atom_labels)), atom_labels, fontsize=14)
+    plt.yticks(range(len(atom_labels)), atom_labels, fontsize=14)
+    plt.xlabel('Atom Type', fontsize=16)
+    plt.ylabel('Atom Type', fontsize=16)
+    plt.title('Warren-Cowley Parameters (First Shell)', fontsize=18)
     
     # Add value annotations with increased font size
     for i in range(len(atom_labels)):
         for j in range(len(atom_labels)):
             plt.text(j, i, f'{sro_values[i,j]:.2f}', 
-                    ha='center', va='center', fontsize=11)
+                    ha='center', va='center', fontsize=13)
     
     plt.savefig(output_file, bbox_inches='tight', dpi=300)  # Added tight layout and increased DPI
     plt.close()
@@ -81,29 +81,29 @@ def analyze_sro_results(output_file, target_sro, element_types, latt_type):
     """
     TYPE_LIST = ["A", "B", "C", "D", "E", "F", "G", "H", "I"][: len(element_types)]
     # Calculate actual SRO values using Warren-Cowley parameters
-    actual_sro = calculate_sro(output_file, latt_type)
-    target_sro = target_sro.reshape(-1, len(element_types), len(element_types))[:len(actual_sro)]
-    logger.info(f"Warren-Cowley Parameters calculated by the WarrenCowleyParameters repo: {actual_sro[0].tolist()}")
+    result_sro = calculate_sro(output_file, latt_type)
+    target_sro = target_sro.reshape(-1, len(element_types), len(element_types))[:len(result_sro)]
+    logger.info(f"Warren-Cowley Parameters calculated by the WarrenCowleyParameters repo: {result_sro[0].tolist()}")
     logger.info(f"target_sro: {target_sro[0].tolist()}")
 
     # Plot actual SRO values
-    plot_sro_heatmap(actual_sro[0], TYPE_LIST, 'sro_heatmap.png')
+    plot_sro_heatmap(result_sro[0], TYPE_LIST, 'heatmap.png')
 
     # Calculate and report differences
-    sro_diff = actual_sro - target_sro
+    sro_diff = result_sro - target_sro
     logger.info("SRO Analysis Results:")
-    logger.info("===============================================")
-    logger.info("Type | Ref SRO    | Target SRO    | Difference:")
+    logger.info("==================================================")
+    logger.info("Type  |  Result SRO  |  Target SRO  |  Difference:")
     for shell in range(1):
         for i in range(len(element_types)):
             for j in range(i + 1):
                 logger.info(
-                    f"{TYPE_LIST[i]}-{TYPE_LIST[j]}  | "
-                    f"Ref={actual_sro[shell][i, j]:>6.3f} | "
-                    f"Target={target_sro[shell][i, j]:>6.3f} | "
-                    f"Diff={sro_diff[shell][i, j]:>6.3f}"
+                    f" {TYPE_LIST[i]}-{TYPE_LIST[j]}  | "
+                    f"{result_sro[shell][i, j]:>9.3f}    | "
+                    f"{target_sro[shell][i, j]:>9.3f}    | "
+                    f"{sro_diff[shell][i, j]:>8.3f}"
                 )
-    logger.info("===============================================")
+    logger.info("==================================================")
     # Calculate overall error metrics
     mae = np.mean(np.abs(sro_diff))
     rmse = np.sqrt(np.mean(sro_diff**2))
@@ -112,4 +112,4 @@ def analyze_sro_results(output_file, target_sro, element_types, latt_type):
     logger.info(f"Mean Absolute Error: {mae:.3f}")
     logger.info(f"Root Mean Square Error: {rmse:.3f}")
     
-    return actual_sro, mae, rmse
+    return result_sro, mae, rmse
