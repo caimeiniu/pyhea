@@ -44,7 +44,7 @@ logger.error("This is an error message.")
 """
 # Set the time format to show only up to seconds
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-formatter = WidthLimitedFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S', width=84)
+formatter = WidthLimitedFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S', width=87)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(formatter)
 

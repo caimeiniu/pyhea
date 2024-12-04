@@ -46,13 +46,13 @@ def main():
     # Parse the arguments
     args = parser.parse_args()
 
-    logger.info("PyHEA: A High performance implementation for building the High Entropy Alloys Model.")
+    logger.info("PyHEA: A High performance implementation for building the High Entropy Alloys Models.")
     logger.info("""#nocutoff \n
               PyHEA      
         ╔═══════════════╗   
         ║               ║
-        ║    Fe   Ni    ║   A High performance implementation of building
-        ║       Mn      ║   the High Entropy Alloys Models.
+        ║    Fe   Ni    ║   A High performance toolkit for High Entropy Alloys Modeling.
+        ║       Mn      ║   
         ║    Al   Co    ║ 
         ║               ║   Developed by Caimei Niu.
         ╚═══════════════╝   
