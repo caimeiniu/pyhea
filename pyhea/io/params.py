@@ -18,7 +18,7 @@ def create_parser():
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Add the main simulation command
-    sim_parser = subparsers.add_parser('simulate', help='Run HEA simulation')
+    sim_parser = subparsers.add_parser('run', help='Run HEA simulation')
     sim_parser.add_argument('config_file', type=str, help='Path to the configuration YAML file.')
     
     # Add the analyze command

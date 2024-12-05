@@ -1,13 +1,16 @@
-import time
 import os
+import time
 
-from pyhea.lattice import lattice
 from pyhea.io import input_config
 from pyhea.io.params import parse_args
-from pyhea.model import opt_model
-from pyhea.utils import logger
-from pyhea.utils.analyze import analyze_structure, analyze_sro_results
+
 from pyhea.comm import comm
+
+from pyhea.utils import logger
+from pyhea.utils.analyze import analyze_structure, analyze_result
+
+from pyhea.model import opt_model
+from pyhea.lattice import lattice
 
 def main():
     """Main function to run the PyHEA lattice simulation."""
@@ -28,7 +31,7 @@ def main():
     """)
 
     # Handle different commands       
-    if args.command == 'simulate':
+    if args.command == 'run':
         logger.info(f"Running the PyHEA lattice simulation with the configuration file: {args.config_file}")
         # Use the parsed argument
         config = input_config(args.config_file)
@@ -60,22 +63,16 @@ def main():
 
         # Analyze SRO parameters and compare with target values
         logger.info("Post-processing: Analyzing SRO parameters...")
-        if comm.Get_rank() == 0:  # Only analyze on root process
-            actual_sro, mae, rmse = analyze_sro_results(
-                f'{config.output_name}.{config.output_format}',
-                config.target_sro,
-                config.element,
-                config.latt_type
-            )
+        result_sro, mae, rmse = analyze_result(
+            f'{config.output_name}.{config.output_format}',
+            config.target_sro,
+            config.element,
+            config.latt_type
+        )
     elif args.command == 'analyze':
         logger.info(f"Analyzing structure file: {args.structure_file}")
-        # Adjust filename if format is poscar
-        structure_file = args.structure_file
-        if args.format == 'poscar':
-            structure_file = f"vasp/poscar/{os.path.basename(args.structure_file)}"
-            
         sro_values, output_file = analyze_structure(
-            structure_file,
+            args.structure_file,
             latt_type=args.lattice_type,
             element_types=args.elements,
             output_file=args.output

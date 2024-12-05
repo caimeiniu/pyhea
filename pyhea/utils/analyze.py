@@ -73,7 +73,7 @@ def plot_sro_heatmap(sro_values, atom_labels, output_file='sro_heatmap.png'):
     plt.savefig(output_file, bbox_inches='tight', dpi=300)  # Added tight layout and increased DPI
     plt.close()
 
-def analyze_sro_results(output_file, target_sro, element_types, latt_type):
+def analyze_result(output_file, target_sro, element_types, latt_type):
     """Analyze SRO results and compare with target values.
     
     @param output_file str Path to LAMMPS output data file
