@@ -136,7 +136,7 @@ def analyze_structure(structure_file, latt_type='FCC', element_types=None, outpu
     # Generate output filename if not provided
     if output_file is None:
         base_name = os.path.splitext(os.path.basename(structure_file))[0]
-        output_file = f'sro_heatmap_{base_name}.png'
+        output_file = f'heatmap.png'
     
     # Plot heatmap
     plot_sro_heatmap(sro_values[0], element_types, output_file)
