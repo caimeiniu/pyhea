@@ -1,4 +1,4 @@
-# PyHEA: A High Performance High-Entropy Alloys Model Builder
+# PyHEA: A Short-Range Order Based High Performance High-Entropy Alloys Model Builder
 
 [![License](https://img.shields.io/badge/License-LGPL3.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org)
