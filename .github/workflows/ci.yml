@@ -144,7 +144,7 @@ jobs:
         CUDA_HOME: /usr/local/cuda
         LD_LIBRARY_PATH: /usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
       run: |
-        python setup.py build_ext --inplace --use-cuda
+        python setup.py build_ext --inplace
         python setup.py bdist_wheel
         ls -l dist/
 
