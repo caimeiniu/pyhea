@@ -53,7 +53,7 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ --cov --junitxml=junit.xml
+        pytest --cov --junitxml=junit.xml
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
