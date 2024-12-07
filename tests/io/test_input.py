@@ -75,6 +75,8 @@ Third Shell
         if os.path.exists(self.test_dir):
             import shutil
             shutil.rmtree(self.test_dir)
+        if os.path.exists('running_hea.log'):
+            os.remove('running_hea.log')
 
     @patch('builtins.open', new_callable=mock_open)
     def test_valid_yaml_and_poscar_loading(self, mock_file):

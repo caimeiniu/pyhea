@@ -60,6 +60,8 @@ First Shell
         if os.path.exists(self.test_dir):
             import shutil
             shutil.rmtree(self.test_dir)
+        if os.path.exists('running_hea.log'):
+            os.remove('running_hea.log')
     
     def test_config_loading(self):
         config = input_config(self.config_file)
