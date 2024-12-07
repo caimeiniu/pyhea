@@ -133,6 +133,7 @@ setup(
         "numpy>=1.19.0",
         "scipy>=1.7.0", 
         "pyyaml>=5.1",
+        "ovito>=3.11.0",
         "mpi4py>=3.0.0",
         "pybind11>=2.6.0",
         "dpdata>=0.2.12",
