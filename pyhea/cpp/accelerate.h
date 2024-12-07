@@ -28,7 +28,8 @@ std::tuple<std::vector<std::vector<int>>, std::vector<double>> run_local_paralle
     const double threshold,
     const std::vector<std::vector<std::vector<int>>>& neighbor_list,
     const std::vector<int>& species,
-    const std::vector<double>& weight);
+    const std::vector<double>& weight,
+    const std::vector<std::vector<double>>& target_sro);
 } // namespace cpu
 
 #ifdef USE_CUDA

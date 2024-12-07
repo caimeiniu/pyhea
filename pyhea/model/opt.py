@@ -66,7 +66,7 @@ class opt_model:
             # Run the Local Parallel HCS algorithm
             if acc is not None:
                 latts, fitss = acc.run_local_parallel_hcs(
-                    self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight)
+                    self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight, self.target_sro)
             else:
                 logger.error("Accelerate module is not available. Please ensure the package is properly installed.")
                 exit()
