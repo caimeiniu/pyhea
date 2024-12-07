@@ -110,7 +110,13 @@ jobs:
     - name: Install system dependencies
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip python3-dev cmake git libopenmpi-dev openmpi-bin
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          python3-pip python3-dev cmake git \
+          libopenmpi-dev openmpi-bin \
+          libegl1 libegl-dev \
+          libgl1-mesa-dev libgles2-mesa-dev \
+          libglvnd0 libglvnd-dev \
+          libx11-6 libx11-dev
         ln -s /usr/bin/python3 /usr/bin/python
 
     - name: Install pybind11
@@ -126,8 +132,11 @@ jobs:
         pip install pybind11
 
     - name: Build package (GPU)
+      env:
+        CUDA_HOME: /usr/local/cuda
+        LD_LIBRARY_PATH: /usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
       run: |
-        CUDA_HOME=/usr/local/cuda python setup.py build_ext --inplace --use-cuda
+        python setup.py build_ext --inplace --use-cuda
         python setup.py bdist_wheel
         ls -l dist/
 
