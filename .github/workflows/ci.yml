@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
@@ -29,7 +29,8 @@ jobs:
           libegl1 libegl-dev \
           libgl1-mesa-dev libgles2-mesa-dev \
           libglvnd0 libglvnd-dev \
-          libx11-6 libx11-dev
+          libx11-6 libx11-dev \
+          libxcb1-dev libxkbcommon-x11-0
         git clone https://github.com/pybind/pybind11.git
         cd pybind11
         cmake -S . -B build -DPYBIND11_TEST=OFF
@@ -60,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
@@ -78,7 +79,8 @@ jobs:
           libegl1 libegl-dev \
           libgl1-mesa-dev libgles2-mesa-dev \
           libglvnd0 libglvnd-dev \
-          libx11-6 libx11-dev
+          libx11-6 libx11-dev \
+          libxcb1-dev libxkbcommon-x11-0
         git clone https://github.com/pybind/pybind11.git
         cd pybind11
         cmake -S . -B build -DPYBIND11_TEST=OFF
@@ -110,7 +112,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
@@ -124,7 +126,8 @@ jobs:
           libegl1 libegl-dev \
           libgl1-mesa-dev libgles2-mesa-dev \
           libglvnd0 libglvnd-dev \
-          libx11-6 libx11-dev
+          libx11-6 libx11-dev \
+          libxcb1-dev libxkbcommon-x11-0
         ln -s /usr/bin/python3 /usr/bin/python
 
     - name: Install pybind11
@@ -144,7 +147,7 @@ jobs:
         CUDA_HOME: /usr/local/cuda
         LD_LIBRARY_PATH: /usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
       run: |
-        python setup.py build_ext --inplace --use-cuda
+        python setup.py build_ext --inplace
         python setup.py bdist_wheel
         ls -l dist/
 
