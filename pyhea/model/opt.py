@@ -62,7 +62,6 @@ class opt_model:
         logger.info("Running Local Parallel HCS optimization...")
         
         if (self.device == "cpu"):
-            logger.info("Running on CPU devices")
             # Run the Local Parallel HCS algorithm
             if acc is not None:
                 latts, fitss = acc.run_local_parallel_hcs(
@@ -86,7 +85,6 @@ class opt_model:
                 logger.error("Cannot run on multiple GPUs. Please run on a single GPU.")
                 exit()
             if acc is not None and acc.cuda_available() == True:
-                logger.info("Running on GPU devices")
                 # Run the Local Parallel HCS algorithm
                 latts, fitss = acc.run_local_parallel_hcs_cuda(
                     self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight, self.target_sro)
