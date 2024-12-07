@@ -1,10 +1,10 @@
-# PyHEA: A High Performance High-Entropy Alloys Modeling Toolkit
+# PyHEA: A Short-Range Order Based High-Performance High-Entropy Alloys Modeling Toolkit
 
 [![License](https://img.shields.io/badge/License-LGPL3.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey)](https://github.com/caimeiniu/pyhea)
 
-PyHEA is a high-performance computational toolkit for modeling and optimizing High Entropy Alloys (HEAs). It provides a comprehensive suite of tools for atomic structure simulation, property prediction, and optimization of multi-component alloy systems.
+PyHEA is a Short-Range Order Based high-performance computational toolkit for modeling and optimizing High Entropy Alloys (HEAs). It provides a comprehensive suite of tools for atomic structure simulation, property prediction, and optimization of multi-component alloy systems.
 
 ## Key Features
 
@@ -147,7 +147,7 @@ If you use PyHEA in your research, please cite:
 ```bibtex
 @software{pyhea2024,
   author = {Niu, Caimei},
-  title = {PyHEA: A High Performance High-Entropy Alloys Model Builder},
+  title = {PyHEA: A Short-Range Order Based High-Performance High-Entropy Alloys Model Builder},
   year = {2024},
   publisher = {GitHub},
   url = {https://github.com/caimeiniu/pyhea},
@@ -180,7 +180,6 @@ If you use PyHEA in your research, please cite:
    - Check Python version compatibility
    - Verify compiler settings in setup.py
 
-For more detailed troubleshooting, please visit our [documentation](docs/troubleshooting.md).
 
 ## Getting Help
 
