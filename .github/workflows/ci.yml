@@ -11,11 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-<<<<<<< HEAD
-        python-version: ["3.9", "3.10"]
-=======
         python-version: ["3.9", "3.10", "3.11"]
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
 
     steps:
     - uses: actions/checkout@v3
@@ -42,11 +38,6 @@ jobs:
     
     - name: Install Python dependencies
       run: |
-<<<<<<< HEAD
-        python -m pip install --upgrade pip
-        pip install pytest pytest-cov flake8 pybind11 psutil numpy scipy matplotlib
-        pip install -e .
-=======
         python -m pip install --upgrade pip build wheel setuptools
         pip install pytest pytest-cov flake8 pybind11 psutil numpy scipy matplotlib
 
@@ -54,7 +45,6 @@ jobs:
       run: |
         python -m build --wheel
         pip install dist/*.whl
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
     
     - name: Lint with flake8
       run: |
@@ -75,11 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-<<<<<<< HEAD
-        python-version: ["3.9", "3.10"]
-=======
         python-version: ["3.9", "3.10", "3.11"]
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
 
     steps:
     - uses: actions/checkout@v3
@@ -103,11 +89,7 @@ jobs:
         cd pybind11
         cmake -S . -B build -DPYBIND11_TEST=OFF
         sudo cmake --install build
-<<<<<<< HEAD
-        python -m pip install --upgrade pip wheel setuptools
-=======
         python -m pip install --upgrade pip build wheel setuptools
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
         pip install pybind11 psutil numpy scipy matplotlib
 
     - name: Build package (CPU)
@@ -133,11 +115,7 @@ jobs:
 
     strategy:
       matrix:
-<<<<<<< HEAD
-        python-version: ["3.9", "3.10"]
-=======
         python-version: ["3.9", "3.10", "3.11"]
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
 
     steps:
     - uses: actions/checkout@v3
@@ -164,11 +142,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-<<<<<<< HEAD
-        python -m pip install --upgrade pip wheel setuptools
-=======
         python -m pip install --upgrade pip build wheel setuptools
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
         pip install pybind11 psutil numpy scipy matplotlib
 
     - name: Build package (GPU)
@@ -176,12 +150,7 @@ jobs:
         CUDA_HOME: /usr/local/cuda
         LD_LIBRARY_PATH: /usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
       run: |
-<<<<<<< HEAD
-        python setup.py build_ext --inplace
-        python setup.py bdist_wheel
-=======
         python -m build --wheel
->>>>>>> d3a07d1afc7ca5c0eb5244a45abf7dbd70f779c2
         ls -l dist/
 
     - name: Test installation from wheel
