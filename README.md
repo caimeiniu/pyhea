@@ -1,161 +1,158 @@
-# PyHEA: A Short-Range Order Based High Performance High-Entropy Alloys Model Builder
+# PyHEA: A High Performance High-Entropy Alloys Modeling Toolkit
 
 [![License](https://img.shields.io/badge/License-LGPL3.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org)
-[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey)](https://github.com/yourusername/pyhea)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey)](https://github.com/caimeiniu/pyhea)
 
-A high-performance implementation for building and optimizing High Entropy Alloys (HEA) models, featuring both CPU and GPU acceleration capabilities.
+PyHEA is a high-performance computational toolkit for modeling and optimizing High Entropy Alloys (HEAs). It provides a comprehensive suite of tools for atomic structure simulation, property prediction, and optimization of multi-component alloy systems.
 
-## Overview
+## Key Features
 
-PyHEA is designed for efficient simulation and optimization of High Entropy Alloys, providing:
+- **High Performance Computing**
+  - MPI-based parallel processing for distributed computing
+  - Optimized neighbor list algorithms
+  - Incremental fitness calculation for improved efficiency
 
-- 🚀 High-performance parallel processing with MPI
-- 💻 Hybrid CPU/GPU computation support
-- ⚡ Incremental fitness calculation for improved efficiency
-- 🔮 Support for both BCC and FCC lattice structures
-- 🛠 Flexible YAML-based configuration system
+- **Comprehensive Modeling**
+  - Support for both BCC and FCC lattice structures
+  - Warren-Cowley parameters calculation
+  - Multi-component alloy system optimization
+  - Customizable fitness functions
+
+- **User-Friendly Design**
+  - YAML-based configuration system
+  - Flexible input/output formats
+  - Extensive documentation and examples
+  - Built-in visualization tools
+
+## Requirements
+
+### Core Dependencies
+- Python >= 3.7
+- NumPy >= 1.19.0
+- SciPy >= 1.7.0
+- PyYAML >= 5.1.0
+- mpi4py >= 3.0.0
+- pybind11 >= 2.6.0
+
+### Optional Dependencies
+- CUDA Toolkit (for GPU acceleration)
+- Matplotlib >= 3.7.0 (for visualization)
+- Seaborn >= 0.12.0 (for advanced plotting)
+- dpdata >= 0.2.0 (for data processing)
+- WarrenCowleyParameters >= 2.0.0 (for structure analysis)
 
 ## Installation
 
-### Prerequisites
-
-```bash
-# Required
-Python >= 3.6
-C++ compiler with C++11 support
-CMake >= 3.18
-MPI implementation (OpenMPI/MPICH)
-
-# Optional
-CUDA Toolkit (for GPU acceleration)
-```
-
-### Installing from PyPI
-
-```bash
-pip install pyhea
-```
-
-### Installing from Source
+### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/pyhea.git
+git clone https://github.com/caimeiniu/pyhea.git
 cd pyhea
+
+# Install dependencies
+pip install -r requirements.txt
 
 # Install in development mode
 pip install -e .
 ```
 
-### Installing from GitHub
-
-```bash
-# Latest version
-pip install git+https://github.com/yourusername/pyhea.git
-
-# Specific version
-pip install git+https://github.com/yourusername/pyhea.git@v1.0.0
-```
-
 ## Quick Start
 
-1. Create your configuration file (input.yaml):
+1. **Basic Configuration**
+
+Create a configuration file `config.yaml`:
 
 ```yaml
-type: 4
-element:
+type: 4                    # Number of element types
+element:                   # Number of atoms per element
   - 64000
   - 64000
   - 64000
   - 64000
-cell_dim:
+cell_dim:                 # Supercell dimensions
   - 40
   - 40
   - 40
-device: cpu  # or 'gpu' for CUDA acceleration
-solutions: 128
-total_iter: 10
-parallel_task: 256
-converge_depth: 10
-weight:
+device: cpu               # Computation device (cpu/gpu)
+solutions: 128            # Number of parallel solutions
+total_iter: 10           # Total optimization iterations
+parallel_task: 256       # Number of parallel MC tasks
+converge_depth: 10       # Convergence criterion
+weight:                  # Shell weights for fitness
   - 4.0
   - 1.0
   - 0.5
-structure: POSCAR_FCC
+structure: POSCAR_FCC    # Input structure file
 ```
 
-2. Run the optimization:
+2. **Running Simulations**
 
 ```bash
-# Run with 4 MPI processes
-mpirun -np 4 python -m hea.main --config input.yaml
+# Run simulation with configuration file
+python -m pyhea run config.yaml
+
+# Run with MPI parallel processing
+mpirun -np 4 python -m pyhea run config.yaml
+
+# Analyze structure
+python -m pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
+python -m pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
+
+# Check version
+python -m pyhea --version
 ```
 
-## Configuration Guide
+3. **Analyzing Results**
 
-| Parameter | Description | Type |
-|-----------|-------------|------|
-| type | Number of element types | int |
-| element | List of element counts | List[int] |
-| cell_dim | Supercell dimensions | List[int] |
-| device | Computation device ('cpu'/'gpu') | str |
-| solutions | Number of parallel solutions | int |
-| total_iter | Total optimization iterations | int |
-| parallel_task | Number of parallel MC tasks | int |
-| converge_depth | Convergence criterion depth | int |
-| weight | Shell weights for fitness | List[float] |
-| structure | Path to POSCAR file | str |
+```python
+from pyhea.utils.analyze import analyze_structure
+from pyhea.io.input import read_structure
 
-## Performance
+# Load and analyze structure
+structure = read_structure("output_structure.xyz")
+results = analyze_structure(structure)
+```
 
-PyHEA achieves high performance through:
+## Performance Benchmarks
 
-1. MPI-based parallel processing
-2. GPU acceleration (with CUDA)
-3. Incremental fitness calculation
-4. Optimized neighbor list management
+| System Size | CPU (1 core) | CPU (24 cores) | GPU (A100) |
+|-------------|-------------|----------------|------------|
+| 20x20x20    | 495.72s     | 20.55s         | 5.04s      |
+| 40x40x40    | 3945.81s    | 164.41s        | 40.43s     |
+| 60x60x60    | 13245.63s   | 551.90s        | 135.84s    |
 
-Example performance comparison for a 40x40x40 supercell:
-- CPU (single core): 3945.81s
-- CPU (24 cores): 164.41s
-- GPU (NVIDIA A100): 40.43s
+## Advanced Usage
 
-## Development
+### Custom Fitness Functions
 
-```bash
-# Clone repository
-git clone https://github.com/yourusername/pyhea.git
-cd pyhea
+```python
+from pyhea.fitness import BaseFitness
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# or
-.\venv\Scripts\activate  # Windows
+class CustomFitness(BaseFitness):
+    def calculate(self, structure):
+        # Implement your custom fitness calculation
+        pass
+```
 
-# Install development dependencies
-pip install -e ".[dev]"
+### Structure Analysis
 
-# Run tests
-pytest tests/
+```python
+from pyhea.utils.analyze import calculate_wcps
+
+# Calculate Warren-Cowley parameters
+wcps = calculate_wcps(structure, max_shell=3)
 ```
 
 ## Contributing
 
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
 1. Fork the repository
-2. Create your feature branch
-   ```bash
-   git checkout -b feature/AmazingFeature
-   ```
-3. Commit your changes
-   ```bash
-   git commit -m 'Add some AmazingFeature'
-   ```
-4. Push to the branch
-   ```bash
-   git push origin feature/AmazingFeature
-   ```
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ## License
@@ -171,42 +168,40 @@ If you use PyHEA in your research, please cite:
   author = {Niu, Caimei},
   title = {PyHEA: A High Performance High-Entropy Alloys Model Builder},
   year = {2024},
-  url = {https://github.com/yourusername/pyhea}
+  publisher = {GitHub},
+  url = {https://github.com/caimeiniu/pyhea},
   note = {Manuscript in preparation.}
 }
 ```
 
 ## Troubleshooting
 
-Common issues and solutions:
+### Common Issues
 
-1. CUDA not detected
+1. **CUDA Issues**
    ```bash
-   # Check CUDA installation
+   # Verify CUDA installation
    nvcc --version
-   # Ensure CUDA_HOME is set
+   # Check CUDA environment
    echo $CUDA_HOME
    ```
 
-2. MPI errors
+2. **MPI Errors**
    ```bash
    # Check MPI installation
    mpirun --version
-   # Test MPI
+   # Test MPI functionality
    mpirun -np 2 hostname
    ```
 
-3. Build failures
-   ```bash
-   # Check CMake version
-   cmake --version
-   # Required: >= 3.18
-   ```
+3. **Installation Problems**
+   - Ensure all dependencies are installed
+   - Check Python version compatibility
+   - Verify compiler settings in setup.py
 
-## Roadmap
+For more detailed troubleshooting, please visit our [documentation](docs/troubleshooting.md).
 
-- [ ] Add support for more lattice types
-- [ ] Implement adaptive convergence criteria
-- [ ] Add visualization tools
-- [ ] Improve GPU memory management
-- [ ] Add support for distributed GPU computing
+## Contact
+
+- Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
+- Documentation: [Read the Docs](https://pyhea.readthedocs.io/)

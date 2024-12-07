@@ -952,7 +952,9 @@ void local_parallel_monte_carlo(
     const Integer& num_types, const Integer& num_shells, const Integer& num_tasks,
     const Integer& search_depth, const Real& threshold,    
     const Integer* neighbor_list, const Integer* neighbor_list_indices,
-    const Integer* species, const Real* weights,
+    const Integer* species, 
+    const std::vector<Integer>& host_species,
+    const Real* weights,
     const Real* target_sro,
     Real* fitness, Integer* lattices)
 {
@@ -968,43 +970,16 @@ void local_parallel_monte_carlo(
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 
-    // Set maximum shared memory for the kernel
-    cudaFuncAttributes attr;
-    if (num_types == 3 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
-    } else if (num_types == 4 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
-    } else if (num_types == 5 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
-    } else if (num_types == 6 && num_shells == 3) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
-    } else if (num_types == 4 && num_shells == 2) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>);
-        cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
-    } else if (num_types == 5 && num_shells == 2) {
-        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>);
-        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>, 
-                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                           prop.sharedMemPerBlockOptin);
+    bool bit_packed = num_types == 4 && shared_usage / 4 <= prop.sharedMemPerBlockOptin;
+
+    for (Integer ii = 0; ii < num_types; ii++) {
+        if (host_species[ii] % 4 != 0) 
+            bit_packed = false;
     }
 
     // Check if shared memory requirement exceeds maximum available
-    if (shared_usage > prop.sharedMemPerBlockOptin && (
-        num_types != 4 || shared_usage / 4 > prop.sharedMemPerBlockOptin)) {
+    if (!bit_packed && shared_usage > prop.sharedMemPerBlockOptin) 
+    {
         auto now = std::chrono::system_clock::now();
         auto now_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm* now_tm = std::localtime(&now_time_t);
@@ -1015,42 +990,95 @@ void local_parallel_monte_carlo(
         exit(1);
     }
     shared_usage = prop.sharedMemPerBlockOptin;
-    
-    if (     num_types == 3 && num_shells == 3) {
+
+    // Set maximum shared memory for the kernel
+    cudaFuncAttributes attr;
+    if (num_types == 3 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
         parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 3, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
-    }
+    } 
     else if (num_types == 4 && num_shells == 3) {
-        parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
-            /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
-            /* outputs */ target_sro, fitness, lattices);
+        if (bit_packed) {
+            cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>);
+            cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3>, 
+                               cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                               prop.sharedMemPerBlockOptin);
+            parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
+                /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
+                /* outputs */ target_sro, fitness, lattices);
+        }
+        else {
+            cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 3>);
+            cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 3>, 
+                               cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                               prop.sharedMemPerBlockOptin);
+            parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 3><<<num_lattices, num_tasks, shared_usage>>>(
+                /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
+                /* outputs */ target_sro, fitness, lattices);
+        }
     } 
     else if (num_types == 5 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
         parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
+        
     } 
     else if (num_types == 6 && num_shells == 3) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
         parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 3><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
-    }
+    } 
     else if (num_types == 4 && num_shells == 2) {
-        parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
+        if (bit_packed) {
+            cudaFuncGetAttributes(&attr, parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>);
+            cudaFuncSetAttribute(parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2>, 
+                               cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                               prop.sharedMemPerBlockOptin);
+            parallel_monte_carlo_bit_packed<Integer, Real, LOW_Integer, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
+        }
+        else {
+            cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 2>);
+            cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 2>, 
+                               cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                               prop.sharedMemPerBlockOptin);
+            parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 4, 2><<<num_lattices, num_tasks, shared_usage>>>(
+            /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
+            /* outputs */ target_sro, fitness, lattices);
+        }
     } 
     else if (num_types == 5 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
         parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 5, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
-    } 
+    }
     else if (num_types == 6 && num_shells == 2) {
+        cudaFuncGetAttributes(&attr, parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 2>);
+        cudaFuncSetAttribute(parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 2>, 
+                           cudaFuncAttributeMaxDynamicSharedMemorySize, 
+                           prop.sharedMemPerBlockOptin);
         parallel_monte_carlo<Integer, Real, LOW_Integer, Real, 6, 2><<<num_lattices, num_tasks, shared_usage>>>(
             /* inputs  */ threshold, search_depth, seed, num_atoms, species, weights, neighbor_list, neighbor_list_indices, 
             /* outputs */ target_sro, fitness, lattices);
-    } 
+    }
     else {
         auto now = std::chrono::system_clock::now();
         auto now_time_t = std::chrono::system_clock::to_time_t(now);
@@ -1060,7 +1088,7 @@ void local_parallel_monte_carlo(
                   << "GPU implementation is not available for the given number of types " << num_types 
                   << " and shells " << num_shells << std::endl;
         exit(1);
-    } 
+    }
 }
 
 template <typename Integer, typename Real>
@@ -1169,13 +1197,13 @@ run_local_parallel_hcs_cuda(
             /* outputs */ new_fitness, new_lattices);
         // Local Search  I: Perform local parallel Monte Carlo optimization
         local_parallel_monte_carlo(
-            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, target_sro,
+            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, host_species, weights, target_sro,
             /* outputs */ new_fitness, new_lattices);
         // Ranking: Calculate the best lattices and update the fitness values
         calculate_best_lattices(num_lattices, num_atoms, lattices, new_lattices, fitness, new_fitness);
         // Local Search II: Perform local parallel Monte Carlo optimization
         local_parallel_monte_carlo(
-            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, weights, target_sro,
+            /* inputs  */ num_lattices, num_atoms, num_types, num_shells, num_tasks, search_depth, (float)threshold, flat_nbor, flat_nbor_idx, species, host_species, weights, target_sro,
             /* outputs */ fitness, lattices);
         cudaMemcpy(host_fitness.data(), fitness, sizeof(float), cudaMemcpyDeviceToHost);
         auto now = std::chrono::system_clock::now();

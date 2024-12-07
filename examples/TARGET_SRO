@@ -1,25 +1,28 @@
-# Target Short-Range Order (SRO) Parameters for High-Entropy Alloy
-# --------------------------------------------------------
-# Format: Upper triangular matrix for 3 atom types (Fe-Mn-Cr)
+# Short-Range Order (Warren-Cowley) Parameters for High-Entropy Alloy System
+# --------------------------------------------------------------------------
+# Description:
+#   This file contains the Warren-Cowley SRO parameters for a quaternary
+#   high-entropy alloy system (Fe-Mn-Cr-Co). The parameters describe the
+#   tendency for atomic ordering in the first coordination shell.
 #
-# Matrix interpretation:
-#   - Positive values: Promote clustering (like neighbors preferred)
-#   - Negative values: Promote ordering (unlike neighbors preferred)
-#   - Zero values: Random distribution
+# Matrix Format: 4x4 Matrix (Supports Lower Triangle)
+# Interpretation of Warren-Cowley Values:
+#   * Positive values (SRO > 0): Tendency for anti-clustering
+#   * Negative values (SRO < 0): Tendency for clustering
+#   * Zero values (SRO = 0): Random distribution
 #
-# First Shell Configuration:
-#   - Slight Fe-Fe clustering (0.1)
-#   - Fe-Mn ordering (-0.1)
-#   - Mn-Mn slight clustering (0.05)
-#   - Random distribution for Cr interactions
+# Matrix Structure (Full Matrix):
+#   Row 1: Fe interactions [Fe-Fe]
+#   Row 2: Mn interactions [Mn-Fe, Mn-Mn]
+#   Row 3: Cr interactions [Cr-Fe, Cr-Mn, Cr-Cr]
+#   Row 4: Co interactions [Co-Fe, Co-Mn, Co-Cr, Co-Co]
 #
-# Row 1: Fe-Fe
-# Row 2: Fe-Mn  Mn-Mn
-# Row 3: Fe-Cr  Mn-Cr  Cr-Cr
-# Row 4: Co-Fe  Co-Mn  Co-Cr  Co-Co
+# Note: For symmetric interactions (e.g., Fe-Mn = Mn-Fe), you can use either
+# lower or upper triangular format for efficiency. The full matrix is also
+# supported if you prefer explicit representation of all interactions.
 
 First Shell
--0.028
--0.005 0.051
-0.155 -0.150 -0.221
--0.049 -0.012 0.182 0.112
+-0.038
+-0.008  0.067
+ 0.351 -0.268 -0.717
+-0.167  0.034  0.388  0.146

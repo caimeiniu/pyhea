@@ -4,8 +4,8 @@ from pyhea.io.output import write_structure
 try:
     from pyhea.cpp import accelerate as acc
 except ImportError:
-    logger.error("Failed to import accelerate module. Please ensure the package is properly installed.")
-    raise
+    logger.warning("Failed to import accelerate module: No module named 'pyhea.cpp.accelerate'\nThis might happen if the C++ extension was not properly built.")
+    acc = None
 
 def file_final_results(nest, latt, ntyp, elem, file, output_format='vasp/poscar'):
     """Write the final results to the specified output format.
@@ -64,8 +64,12 @@ class opt_model:
         if (self.device == "cpu"):
             logger.info("Running on CPU devices")
             # Run the Local Parallel HCS algorithm
-            latts, fitss = acc.run_local_parallel_hcs(
-                self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight)
+            if acc is not None:
+                latts, fitss = acc.run_local_parallel_hcs(
+                    self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight)
+            else:
+                logger.error("Accelerate module is not available. Please ensure the package is properly installed.")
+                exit()
             # Alltogther the results from all processes into rank 0 and reshape the results
             latts = self.comm.gather(latts, root=0)
             fitss = self.comm.gather(fitss, root=0)
@@ -81,13 +85,14 @@ class opt_model:
             if (self.comm.Get_size() > 1):
                 logger.error("Cannot run on multiple GPUs. Please run on a single GPU.")
                 exit()
-            if (acc.cuda_available() == False):
-                logger.error("CUDA is not available on this machine. Please run on a machine with CUDA support.")
+            if acc is not None and acc.cuda_available() == True:
+                logger.info("Running on GPU devices")
+                # Run the Local Parallel HCS algorithm
+                latts, fitss = acc.run_local_parallel_hcs_cuda(
+                    self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight, self.target_sro)
+            else:
+                logger.error("CUDA is not available on this machine or accelerate module is not available. Please ensure the package is properly installed and CUDA support is available.")
                 exit()
-            logger.info("Running on GPU devices")
-            # Run the Local Parallel HCS algorithm
-            latts, fitss = acc.run_local_parallel_hcs_cuda(
-                self.nnet, self.step, self.task, self.depth, self.thr, self.nbor, self.element, self.weight, self.target_sro)
         else:
             logger.error("Invalid device type. Please specify either 'cpu' or 'gpu'.")
             exit()

@@ -16,16 +16,18 @@ def calculate_sro(filename, latt_type):
     @param latt_type str Lattice type
     @return tuple (ndarray, dict) SRO values matrix and atom type counts
     """
-
     if filename.endswith('lammps/lmp'):
         filename = filename.replace('lammps/lmp', 'lmp')
-        pipeline = import_file(filename)
     elif filename.endswith('vasp/poscar'):
         filename = filename.replace('vasp/poscar', 'poscar')
         data = dpdata.System(filename, fmt='vasp/poscar')
         filename = filename.replace('poscar', 'lmp')
         data.to_lammps_lmp(filename)
         pipeline = import_file(filename)
+        
+    pipeline = import_file(filename)
+
+    if filename.endswith('vasp/poscar'):
         os.remove(filename)
     
     # Setup Warren-Cowley parameter calculation
@@ -71,7 +73,7 @@ def plot_sro_heatmap(sro_values, atom_labels, output_file='sro_heatmap.png'):
     plt.savefig(output_file, bbox_inches='tight', dpi=300)  # Added tight layout and increased DPI
     plt.close()
 
-def analyze_sro_results(output_file, target_sro, element_types, latt_type):
+def analyze_result(output_file, target_sro, element_types, latt_type):
     """Analyze SRO results and compare with target values.
     
     @param output_file str Path to LAMMPS output data file
@@ -113,3 +115,30 @@ def analyze_sro_results(output_file, target_sro, element_types, latt_type):
     logger.info(f"Root Mean Square Error: {rmse:.3f}")
     
     return result_sro, mae, rmse
+
+def analyze_structure(structure_file, latt_type='FCC', element_types=None, output_file=None):
+    """Analyze the SRO parameters of a given structure file and generate visualization.
+    
+    @param structure_file str Path to the structure file (LAMMPS .lmp or VASP POSCAR)
+    @param latt_type str Lattice type ('FCC' or 'BCC')
+    @param element_types list List of element types in the structure
+    @param output_file str Optional output filename for the heatmap. If None, generates default name
+    @return tuple SRO values and visualization file path
+    """
+    # Calculate SRO parameters
+    sro_values = calculate_sro(structure_file, latt_type)
+    
+    # If element types not provided, use generic labels
+    if element_types is None:
+        n_types = len(sro_values[0])
+        element_types = TYPE_LIST = ["A", "B", "C", "D", "E", "F", "G", "H", "I"][:n_types]
+    
+    # Generate output filename if not provided
+    if output_file is None:
+        base_name = os.path.splitext(os.path.basename(structure_file))[0]
+        output_file = f'heatmap.png'
+    
+    # Plot heatmap
+    plot_sro_heatmap(sro_values[0], element_types, output_file)
+    
+    return sro_values[0], output_file

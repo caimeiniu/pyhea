@@ -8,6 +8,7 @@ import os
 import tempfile
 from pathlib import Path
 import dpdata
+import numpy as np
 from pyhea.version import __version__
 
 def write_structure(nest, latt, ntyp, elem, file, output_format='vasp/poscar'):
@@ -104,3 +105,34 @@ def write_poscar(nest, latt, ntyp, elem, file):
         # Write coordinates for each type
         for i in range(ntyp):
             final_coords.write(coords[i])
+
+def save_output(data, output_file):
+    """Save simulation output data to a file.
+
+    Args:
+        data (dict): Dictionary containing simulation data with keys like 'sro', 'energy', 'temperature'
+        output_file (str): Path to the output file
+
+    Raises:
+        ValueError: If data is None or empty
+        OSError: If the output directory doesn't exist or isn't writable
+    """
+    if data is None:
+        raise ValueError("Data cannot be None")
+    if not data:
+        raise ValueError("Data dictionary cannot be empty")
+
+    # Ensure the directory exists
+    output_dir = os.path.dirname(output_file)
+    if output_dir and not os.path.exists(output_dir):
+        raise OSError(f"Output directory does not exist: {output_dir}")
+
+    try:
+        with open(output_file, 'w') as f:
+            for key, value in data.items():
+                if isinstance(value, np.ndarray):
+                    f.write(f"{key}: {' '.join(map(str, value))}\n")
+                else:
+                    f.write(f"{key}: {value}\n")
+    except (IOError, OSError) as e:
+        raise OSError(f"Failed to write output file: {str(e)}")
