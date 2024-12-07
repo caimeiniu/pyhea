@@ -107,7 +107,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:11.8.0-devel-ubuntu22.04
-      options: --gpus all
 
     strategy:
       matrix:
@@ -152,7 +151,7 @@ jobs:
     - name: Test installation from wheel
       run: |
         pip install dist/*.whl
-        python -c "import pyhea; print(pyhea.__version__); print('CUDA available:', pyhea.utils.device.is_cuda_available())"
+        python -c "import pyhea; print(pyhea.__version__)"
 
     - name: Upload wheel artifact
       uses: actions/upload-artifact@v3
