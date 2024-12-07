@@ -63,6 +63,8 @@ class input_config:
                 data = yaml.safe_load(file)
                 if data is None or not isinstance(data, dict):
                     raise ValueError(f"Invalid or empty YAML file: {self.file_path}")
+                if not all(key in self.ALLOWED_KEYS for key in data):
+                    raise ValueError(f"Invalid keys in YAML file: {self.file_path}")
                 return data
         except FileNotFoundError as e:
             raise FileNotFoundError(f"YAML file not found: {self.file_path}") from e
@@ -87,7 +89,6 @@ class input_config:
             with open(structure_file, 'r') as file:
                 # Read all lines and filter out empty lines and comments
                 lines = [line.split('#')[0].strip() for line in file if line.strip()]
-
                 # Extracting relevant data from the POSCAR file
                 structure_data['comment'] = lines[0].strip()
                 structure_data['lattice_constant'] = float(lines[1].strip())
@@ -103,49 +104,142 @@ class input_config:
                 if structure_data['coordinate_type'] not in ['direct', 'cartesian']:
                     raise ValueError("Coordinate type must be either 'direct' or 'cartesian'.")
 
-                positions = []
-                for i in range(structure_data['num_atoms']):
-                    positions.append(list(map(float, lines[7 + i].split())))
+                structure_type = ''
+                if structure_data['num_atoms'] == 2:
+                    structure_type = 'BCC'
+                elif structure_data['num_atoms'] == 4:
+                    structure_type = 'FCC'
+                else:
+                    raise ValueError(f"The lattice type is not supported for {structure_data['num_atoms']} atoms.")
 
+                if len(lines[7:]) != structure_data['num_atoms']:
+                    raise ValueError("Number of atomic positions does not match declared atom count")
+
+                positions = []
+                for line in lines[7:]:
+                    if len(line.split()) != 3:
+                        raise ValueError("Invalid atomic position format")
+                    positions.append(list(map(float, line.split())))
                 structure_data['positions'] = positions
 
         except FileNotFoundError as e:
             raise FileNotFoundError(f"POSCAR file not found: {structure_file}") from e
-        except ValueError as e:
-            raise ValueError(f"Invalid data in POSCAR file: {structure_file}") from e
 
+        self._validate_structure(structure_data)
         return structure_data
 
     def _validate_config(self):
-        if (len(self.element) != self.type or len(self.cell_dim) != 3):
-            raise ValueError("The number of elements and cell dimensions must match the type and cell dimensions.")
-        
-        # Check for cubic cell dimensions
-        if not all(dim == self.cell_dim[0] for dim in self.cell_dim):
-            raise ValueError("Only cubic cell dimensions are supported. All dimensions must be equal.")
-            
-        unknown_keys = set(self.config.keys()) - self.ALLOWED_KEYS
-        if unknown_keys:
-            raise ValueError(f"Unknown parameters found in the configuration: {unknown_keys}")
-        if sum(self.config.get('element', [])) != self.structure['num_atoms'] * np.prod(self.config.get('cell_dim', [])):
-            raise ValueError(f"The sum of elements {sum(self.config.get('element', []))} does not match the total number of atoms {self.structure['num_atoms'] * np.prod(self.config.get('cell_dim', []))}")
+        """Validate the configuration data.
 
-        # Validate output format if specified
-        if 'output' in self.config:
-            output_config = self.config['output']
-            if not isinstance(output_config, dict):
-                raise ValueError("Output configuration must be a dictionary")
+        Raises
+        ------
+        ValueError:
+            If any configuration values are invalid.
+        """
+        # Validate element counts
+        total_atoms = sum(self.config.get('element', []))
+        cell_volume = np.prod(self.config.get('cell_dim', [1, 1, 1]))
+        atoms_per_cell = self.structure.get('num_atoms', 0)
+        expected_atoms = cell_volume * atoms_per_cell
+
+        # Validate weights
+        weights = self.config.get('weight', [])
+        if any(w <= 0 for w in weights):
+            raise ValueError("All weights must be positive values")
+
+        # Validate cell dimensions
+        cell_dim = self.config.get('cell_dim', [])
+        if not all(isinstance(d, int) and d > 0 for d in cell_dim):
+            raise ValueError("Cell dimensions must be positive integers")
+        if len(set(cell_dim)) != 1:
+            raise ValueError("Only cubic cell dimensions are supported. All dimensions must be equal.")
+
+        if total_atoms != expected_atoms:
+            raise ValueError(f"The sum of elements {total_atoms} does not match the total number of atoms {expected_atoms}")
+
+        # Validate target SRO file
+        target_sro_file = self.config.get('target_sro')
+        if target_sro_file:
+            if not os.path.exists(target_sro_file):
+                raise FileNotFoundError(f"Target SRO file not found: {target_sro_file}")
+            self._validate_sro_file(target_sro_file)
+        
+        # size of elements and type should be same
+        if len(self.config.get('element', [])) != self.config.get('type'):
+            raise ValueError("Number of elements should be equal to type")
+
+    def _validate_sro_file(self, sro_file):
+        """Validate the SRO file format and content.
+
+        Parameters
+        ----------
+        sro_file : str
+            Path to the SRO file.
+
+        Raises
+        ------
+        ValueError:
+            If the SRO file format is invalid.
+        """
+        try:
+            with open(sro_file, 'r') as f:
+                lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
             
-            if 'format' in output_config:
-                output_format = output_config['format']
-                if output_format not in self.SUPPORTED_FORMATS:
-                    raise ValueError(f"Unsupported output format: {output_format}. "
-                                  f"Supported formats: {', '.join(self.SUPPORTED_FORMATS.keys())}")
+            num_types = self.config.get('type', 2)
+            expected_values = (num_types * (num_types + 1)) // 2  # Number of values in lower triangular matrix
             
-            if 'name' in output_config:
-                output_name = output_config['name']
-                if not isinstance(output_name, str):
-                    raise ValueError("Output name must be a string")
+            # Check each shell's data
+            current_shell = None
+            count = 0
+            for line in lines:
+                if not any(char.isdigit() for char in line):
+                    current_shell = line  # Shell name/header
+                    count = 0
+                else:
+                    if current_shell is None:
+                        raise ValueError("SRO file must start with a shell name")
+                    count += 1
+                    values = list(map(float, line.split()))
+                    if len(values) > expected_values:
+                        raise ValueError(f"Too many values for shell {current_shell}. Expected {expected_values} values.")
+                    if len(values) != count:
+                        raise ValueError(f"Invalid number of values for shell {current_shell}. Expected {expected_values} values.")
+        except ValueError as e:
+            raise ValueError(f"Invalid SRO file format: {str(e)}")
+
+    def _validate_structure(self, structure_data):
+        """Validate the structure data from POSCAR.
+
+        Parameters
+        ----------
+        structure_data : dict
+            The structure data to validate.
+
+        Raises
+        ------
+        ValueError:
+            If the structure data is invalid.
+        """
+        # Check number of atoms matches coordinates
+        if len(structure_data.get('positions', [])) != structure_data.get('num_atoms', 0):
+            raise ValueError("Number of atomic positions does not match declared atom count")
+
+        # Check for cubic cell
+        vectors = structure_data.get('lattice_vectors', [])
+        if not all(len(v) == 3 for v in vectors):
+            raise ValueError("Invalid lattice vectors")
+        
+        # Check for orthogonal vectors
+        for i in range(3):
+            for j in range(i+1, 3):
+                dot_product = sum(a*b for a, b in zip(vectors[i], vectors[j]))
+                if abs(dot_product) > 1e-10:  # Allow for numerical precision
+                    raise ValueError("Non-orthogonal lattice vectors are not supported")
+        
+        # Check for equal lengths (cubic)
+        lengths = [sum(x*x for x in v)**0.5 for v in vectors]
+        if not all(abs(lengths[0] - l) < 1e-10 for l in lengths[1:]):
+            raise ValueError("Non-cubic cell detected")
 
     @property
     def type(self):
@@ -177,7 +271,10 @@ class input_config:
 
     @property
     def max_shell_num(self):
-        return len(self.config.get('weight', 0))
+        if self.config.get('weight', 0) == 0:
+            return 0
+        else:
+            return len(self.config.get('weight', []))
 
     @property
     def weight(self):
@@ -260,6 +357,7 @@ class input_config:
             with open(target_sro_file, 'r') as f:
                 # Read all lines and filter out empty lines
                 all_lines = [line.strip() for line in f if line.strip()]
+
                 
                 # Initialize variables
                 current_shell = []
@@ -273,7 +371,7 @@ class input_config:
                         continue
                         
                     # If we find a shell marker, start a new shell
-                    if line.lower().startswith('second shell') or line.lower().startswith('shell'):
+                    if line.lower().startswith('shell') or line.lower().startswith('second shell') or line.lower().startswith('third shell'):
                         if current_shell:
                             if len(current_shell) != expected_length:
                                 raise ValueError(f"Shell {shell_count+1} has incorrect number of values. Expected {expected_length}, got {len(current_shell)}")
@@ -308,7 +406,7 @@ class input_config:
                         full_shells[shell][1] = default_shells[shell][1]
                         full_shells[shell][2] = default_shells[shell][1]
                         full_shells[shell][3] = default_shells[shell][2]
-                    if num_types == 3:
+                    elif num_types == 3:
                         full_shells[shell][0] = default_shells[shell][0]
                         full_shells[shell][1] = default_shells[shell][1]
                         full_shells[shell][2] = default_shells[shell][3]
@@ -318,7 +416,7 @@ class input_config:
                         full_shells[shell][6] = default_shells[shell][3]
                         full_shells[shell][7] = default_shells[shell][4]
                         full_shells[shell][8] = default_shells[shell][5]
-                    if num_types == 4:
+                    elif num_types == 4:
                         full_shells[shell][0] = default_shells[shell][0]
                         full_shells[shell][1] = default_shells[shell][1]
                         full_shells[shell][2] = default_shells[shell][3]
