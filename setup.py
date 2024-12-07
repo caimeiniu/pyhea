@@ -100,7 +100,6 @@ class CMakeBuild(build_ext):
         # Basic CMake arguments
         cmake_args = [
             f'-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}',
-            f'-DPYTHON_EXECUTABLE={sys.executable}',
             f'-DCMAKE_PREFIX_PATH={cmake_prefix_path}',
             f'-DCMAKE_BUILD_TYPE=Release'
         ]
@@ -129,7 +128,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=[
         "numpy>=1.19.0",
         "scipy>=1.7.0", 
