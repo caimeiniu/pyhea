@@ -22,6 +22,7 @@ wheels/
 *.egg-info
 .pytest_cache
 examples/
+.coverage
 
 # C++ build files
 *.o
