@@ -122,7 +122,8 @@ void calculate_fitness_of_solutions(
         const std::vector<Real>& sro,
         const std::vector<Real>& weight,
         const std::vector<Integer>& species,
-        const std::vector<std::vector<std::vector<Integer>>>& neighbor_list) 
+        const std::vector<std::vector<std::vector<Integer>>>& neighbor_list,
+        const std::vector<std::vector<Real>>& target_sro) 
 {
     // Get the number of atom types, atoms, shells, and lattices
     const Integer num_types     = species.size(); // Number of atom types
@@ -135,39 +136,28 @@ void calculate_fitness_of_solutions(
     using vec3 = std::vector<std::vector<std::vector<Real>>>; // Alias for 3D vector
 
     // Initialize matrices
-    vec3 alpha(num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
     vec3 gamma(num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
-    vec3 count(num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
 
     Integer accumulate = 0; // Counter for fitness values
 
     // Iterate through each lattice
     for (auto lattice : lattices) {
-        // Initialize alpha, gamma, and count matrices for this lattice
+        // Initialize gamma matrices for this lattice
         for (Integer ii = 0; ii < num_types * num_types * num_shells; ++ii) {
-            auto zz =  ii %  num_shells; // Current shell index
-            auto yy = (ii /  num_shells) % num_types; // Current atom type index
             auto xx =  ii / (num_types * num_shells); // Current atom type index
-            alpha[xx][yy][zz] = 0.0;
+            auto yy = (ii /  num_shells) % num_types; // Current atom type index
+            auto zz =  ii %  num_shells; // Current shell index
             gamma[xx][yy][zz] = 0.0;
-            count[xx][yy][zz] = 0.0;
         }
 
-        // Compute gamma distribution and alpha gamma counts
+        // Compute gamma distribution
         for (Integer ii = 0; ii < num_atoms; ++ii) { // Loop over each atom in the lattice
             Integer atom = lattice[ii]; // Current atom index
             for (Integer jj = 0; jj < num_shells; ++jj) { // Loop over each shell
                 Integer shell = neighbor_list[ii][jj].size(); // Number of neighbors in this shell
                 for (Integer kk = 0; kk < shell; ++kk) { // Loop over each neighbor
                     Integer neighbor = lattice[neighbor_list[ii][jj][kk]]; // Neighbor atom index
-                    gamma[atom][neighbor][jj] += 1; // Increment gamma count for this pair
-
-                    // Ensure we are counting cross-type pairs only
-                    if (atom != neighbor) {  
-                        Real var = species[atom] * (1 - sro[jj]) * shell * (species[neighbor] / static_cast<Real>(num_atoms));
-                        alpha[atom][neighbor][jj] += var; // Update alpha
-                        count[atom][neighbor][jj] += 1; // Update count
-                    }
+                    gamma[atom][neighbor][jj] += 1 / (static_cast<Real>(shell) * num_atoms); // Increment gamma count for this pair
                 }
             }
         }
@@ -178,11 +168,9 @@ void calculate_fitness_of_solutions(
             Real error_kk = 0.0; // Initialize shell-specific error
             for (Integer ii = 0; ii < num_types; ++ii) { // Loop over each atom type
                 for (Integer jj = 0; jj < num_types; ++jj) { // Loop over each atom type
-                    if (ii != jj) { // Ensure we are comparing different atom types
-                        // Calculate error for this pair in the shell
-                        Real var = (count[ii][jj][kk] == 0) ? 0.0 : alpha[ii][jj][kk] / count[ii][jj][kk];
-                        error_kk += std::pow(gamma[ii][jj][kk] - var, 2); // Accumulate squared error
-                    }
+                    Real sro = 1 - gamma[ii][jj][kk] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
+                    Real shell_sro = target_sro[kk][ii * num_types + jj];
+                    error_kk += std::pow(sro - shell_sro, 2); // Accumulate squared error
                 }
             }
             error += weight[kk] * error_kk; // Accumulate weighted error for the shell
@@ -234,7 +222,8 @@ void generate_random_lattices(
     const std::vector<Real>& sro,
     const std::vector<Real>& weight,
     const std::vector<Integer>& species,
-    const std::vector<std::vector<std::vector<Integer>>>& neighbor_list)
+    const std::vector<std::vector<std::vector<Integer>>>& neighbor_list,
+    const std::vector<std::vector<Real>>& target_sro)
 {
     const int num_types     = species.size(); // Number of atom types
     const int num_solutions = lattices.size(); // Number of lattices to generate
@@ -259,7 +248,7 @@ void generate_random_lattices(
     }
 
     // Calculate fitness values for the generated lattices
-    calculate_fitness_of_solutions(fitness, lattices, sro, weight, species, neighbor_list);
+    calculate_fitness_of_solutions(fitness, lattices, sro, weight, species, neighbor_list, target_sro);
 }
 
 
@@ -380,13 +369,10 @@ void calculate_best_lattices(
  */
 template <typename Integer, typename Real>
 void calculate_sro_coefficient(
-    std::vector<std::vector<std::vector<Real>>>& alpha,
     std::vector<std::vector<std::vector<Real>>>& gamma,
-    std::vector<std::vector<std::vector<Real>>>& count,
     const Integer& num_atoms,
     const Integer& num_types,
     const Integer& num_shells,
-    const std::vector<Real>& sro,
     const std::vector<Integer>& lattice,  // Use const reference for input
     const std::vector<Integer>& species,
     const std::vector<std::vector<std::vector<Integer>>>& neighbor_list
@@ -396,9 +382,7 @@ void calculate_sro_coefficient(
         auto zz =  ii %  num_shells; // Current shell index
         auto yy = (ii /  num_shells) % num_types; // Current atom type index (y)
         auto xx =  ii / (num_types   * num_shells); // Current atom type index (x)
-        alpha[xx][yy][zz] = 0.0;
         gamma[xx][yy][zz] = 0.0;
-        count[xx][yy][zz] = 0.0;
     }
 
     // Compute pair distribution and average pair counts
@@ -408,12 +392,7 @@ void calculate_sro_coefficient(
             Integer shell_size = neighbor_list[ii][jj].size(); // Number of neighbors in the shell
             for (Integer kk = 0; kk < shell_size; ++kk) {
                 Integer neighbor = lattice[neighbor_list[ii][jj][kk]]; // Surrounding atom index
-                gamma[atom][neighbor][jj] += 1; // Increment the gamma count
-                if (atom != neighbor) {  // Ensure we are counting cross-type pairs only
-                    Real var = species[atom] * (1 - sro[jj]) * shell_size * (species[neighbor] / static_cast<Real>(num_atoms));
-                    alpha[atom][neighbor][jj] += var; // Update alpha with weighted value
-                    count[atom][neighbor][jj] += 1; // Increment the count for this pair
-                }
+                gamma[atom][neighbor][jj] += 1 / (static_cast<Real>(shell_size) * num_atoms); // Increment gamma count for this pair
             }
         }
     }
@@ -519,9 +498,7 @@ Real calculate_fitness(
 template <typename Integer, typename Real>
 Real calculate_fitness_incremental(
     std::vector<Integer>& lattice,
-    std::vector<std::vector<std::vector<Real>>>& alpha,
     std::vector<std::vector<std::vector<Real>>>& gamma,
-    std::vector<std::vector<std::vector<Real>>>& count,
     const Integer& atom1,
     const Integer& atom2,
     const Integer& num_atoms,
@@ -529,7 +506,7 @@ Real calculate_fitness_incremental(
     const Integer& num_shells,
     const std::vector<Integer>& species,
     const std::vector<std::vector<std::vector<Integer>>>& neighbor_list,
-    const std::vector<Real>& sro,
+    const std::vector<std::vector<Real>>& target_sro,
     const std::vector<Real>& weight
 ) {
     // Decrement counts for atom1 and atom2
@@ -546,29 +523,11 @@ Real calculate_fitness_incremental(
                 neighbor_after_swap = lattice[atom2];
             }
 
-            gamma[atom][neighbor][shell] -= 1;
-            gamma[neighbor][atom][shell] -= 1;
+            gamma[atom][neighbor][shell] -= 1.0 / (shell_size * num_atoms);
+            gamma[neighbor][atom][shell] -= 1.0 / (shell_size * num_atoms);
 
-            gamma[atom_after_swap][neighbor_after_swap][shell] += 1;
-            gamma[neighbor_after_swap][atom_after_swap][shell] += 1;
-
-            if (atom != neighbor) {  // Ensure we are counting cross-type pairs only
-                Real var = species[atom] * (1 - sro[shell]) * shell_size * (species[neighbor] / static_cast<Real>(num_atoms));
-                alpha[atom][neighbor][shell] -= var;
-                alpha[neighbor][atom][shell] -= var;
-
-                count[atom][neighbor][shell] -= 1;
-                count[neighbor][atom][shell] -= 1;
-            }
-
-            if (atom_after_swap != neighbor_after_swap) {  // Ensure we are counting cross-type pairs only
-                Real var = species[atom_after_swap] * (1 - sro[shell]) * shell_size * (species[neighbor_after_swap] / static_cast<Real>(num_atoms));
-                alpha[atom_after_swap][neighbor_after_swap][shell] += var;
-                alpha[neighbor_after_swap][atom_after_swap][shell] += var;
-
-                count[atom_after_swap][neighbor_after_swap][shell] += 1;
-                count[neighbor_after_swap][atom_after_swap][shell] += 1;
-            }
+            gamma[atom_after_swap][neighbor_after_swap][shell] += 1.0 / (shell_size * num_atoms);
+            gamma[neighbor_after_swap][atom_after_swap][shell] += 1.0 / (shell_size * num_atoms);
         }
 
         atom = lattice[atom2];
@@ -582,29 +541,11 @@ Real calculate_fitness_incremental(
                 neighbor_after_swap = lattice[atom1];
             }
 
-            gamma[atom][neighbor][shell] -= 1;
-            gamma[neighbor][atom][shell] -= 1;
+            gamma[atom][neighbor][shell] -= 1.0 / (shell_size * num_atoms);
+            gamma[neighbor][atom][shell] -= 1.0 / (shell_size * num_atoms);
             
-            gamma[atom_after_swap][neighbor_after_swap][shell] += 1;
-            gamma[neighbor_after_swap][atom_after_swap][shell] += 1;
-
-            if (atom != neighbor) {  // Ensure we are counting cross-type pairs only
-                Real var = species[atom] * (1 - sro[shell]) * shell_size * (species[neighbor] / static_cast<Real>(num_atoms));
-                alpha[atom][neighbor][shell] -= var;
-                alpha[neighbor][atom][shell] -= var;
-
-                count[atom][neighbor][shell] -= 1;
-                count[neighbor][atom][shell] -= 1;
-            }
-
-            if (atom_after_swap != neighbor_after_swap) {  // Ensure we are counting cross-type pairs only
-                Real var = species[atom_after_swap] * (1 - sro[shell]) * shell_size * (species[neighbor_after_swap] / static_cast<Real>(num_atoms));
-                alpha[atom_after_swap][neighbor_after_swap][shell] += var;
-                alpha[neighbor_after_swap][atom_after_swap][shell] += var;
-
-                count[atom_after_swap][neighbor_after_swap][shell] += 1;
-                count[neighbor_after_swap][atom_after_swap][shell] += 1;
-            }
+            gamma[atom_after_swap][neighbor_after_swap][shell] += 1.0 / (shell_size * num_atoms);
+            gamma[neighbor_after_swap][atom_after_swap][shell] += 1.0 / (shell_size * num_atoms);
         }
     }
 
@@ -618,15 +559,13 @@ Real calculate_fitness_incremental(
         Real error_kk = 0.0;
         for (Integer ii = 0; ii < num_types; ++ii) {
             for (Integer jj = 0; jj < num_types; ++jj) {
-                if (ii != jj) {
-                    Real var  = (count[ii][jj][kk] == 0) ? 0.0 : alpha[ii][jj][kk] / count[ii][jj][kk];
-                    error_kk += (gamma[ii][jj][kk] - var) * (gamma[ii][jj][kk] - var);
-                }
+                Real sro = 1 - gamma[ii][jj][kk] / ((static_cast<Real>(species[ii]) / static_cast<Real>(num_atoms)) * (static_cast<Real>(species[jj]) / static_cast<Real>(num_atoms)));
+                Real shell_sro = target_sro[kk][ii * num_types + jj];
+                error_kk += (sro - shell_sro) * (sro - shell_sro);
             }
         }
         error += weight_kk * error_kk;
     }
-
     return std::sqrt(error);
 }
 
@@ -667,7 +606,7 @@ void local_parallel_monte_carlo(
     const Integer& depth,
     const std::vector<std::vector<std::vector<Integer>>>& neighbor_list,
     const std::vector<Integer>& species,
-    const std::vector<Real>& sro,
+    const std::vector<std::vector<Real>>& target_sro,
     const std::vector<Real>& weight
 ) {
     Real threshold = 0.001; // Threshold for fitness comparison
@@ -680,18 +619,9 @@ void local_parallel_monte_carlo(
     using vec2 = std::vector<std::vector<Real>>; // Alias for 2D vector
     using vec3 = std::vector<std::vector<std::vector<Real>>>; // Alias for 3D vector
 
-    // Initialize matrices
-    vec3 alpha     (num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
-    vec3 prev_alpha(num_types, vec2(num_types, vec1(num_shells, 0.0)));
-    vec3 best_alpha(num_types, vec2(num_types, vec1(num_shells, 0.0)));
-    
     vec3 gamma     (num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
     vec3 prev_gamma(num_types, vec2(num_types, vec1(num_shells, 0.0)));
     vec3 best_gamma(num_types, vec2(num_types, vec1(num_shells, 0.0)));
-
-    vec3 count     (num_types, vec2(num_types, vec1(num_shells, 0.0))); // Dimension: [num_types][num_types][num_shells]
-    vec3 prev_count(num_types, vec2(num_types, vec1(num_shells, 0.0)));
-    vec3 best_count(num_types, vec2(num_types, vec1(num_shells, 0.0)));
 
     for (size_t ii = 0; ii < lattices.size(); ++ii) {
         // std::cout << "ii = " << ii << std::endl;
@@ -704,12 +634,10 @@ void local_parallel_monte_carlo(
         Integer accumulate = 0;
 
         calculate_sro_coefficient(
-            alpha, gamma, count, 
-            num_atoms, num_types, num_shells, sro, curr, species, neighbor_list);
+            gamma, 
+            num_atoms, num_types, num_shells, curr, species, neighbor_list);
 
-        copy(prev_alpha, alpha);
         copy(prev_gamma, gamma);
-        copy(prev_count, count);
 
         // mc until all threads are converged at least 10 times
         while (accumulate < depth) {
@@ -726,13 +654,11 @@ void local_parallel_monte_carlo(
                     atom2 = std::rand() % curr.size();
                 }
 
-                copy(alpha, prev_alpha);
                 copy(gamma, prev_gamma);
-                copy(count, prev_count);
                 // Real new_fit = calc_grs(curr, neighbor_list, species, weight, sro, alpha, gamma, count, num_atoms, num_types, num_shells, atom1, atom2);
                 Real curr_fit = calculate_fitness_incremental(
-                    curr, alpha, gamma, count,
-                    atom1, atom2, num_atoms, num_types, num_shells, species, neighbor_list, sro, weight);
+                    curr, gamma,
+                    atom1, atom2, num_atoms, num_types, num_shells, species, neighbor_list, target_sro, weight);
                 
                 if (jj == 0) {
                     best = curr;
@@ -792,8 +718,9 @@ std::tuple<std::vector<std::vector<int>>, std::vector<double>> run_local_paralle
         const double threshold,
         const std::vector<std::vector<std::vector<int>>>& neighbor_list,
         const std::vector<int>& species,
-        const std::vector<double>& weight) 
-{    
+        const std::vector<double>& weight,
+        const std::vector<std::vector<double>>& target_sro) 
+{   
     int mpi_rank, mpi_size;
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -807,19 +734,19 @@ std::tuple<std::vector<std::vector<int>>, std::vector<double>> run_local_paralle
     std::vector<double> sro(num_shells, 0.0);
     std::vector<double> fitness(num_solutions, 0.0);
     std::vector<double> new_fitness(num_solutions, 0.0);
-    generate_random_lattices(fitness, lattices, sro, weight, species, neighbor_list);
+    generate_random_lattices(fitness, lattices, sro, weight, species, neighbor_list, target_sro);
 
     // Global Search Loop
     double best_fitness = 100.0;
     for (int ii = 0; ii < step; ii++) {
         // Perpuatation: Generate new lattices randomly
-        generate_random_lattices(new_fitness, new_solutions, sro, weight, species, neighbor_list);
+        generate_random_lattices(new_fitness, new_solutions, sro, weight, species, neighbor_list, target_sro);
         // Local Search  I: Perform local parallel Monte Carlo optimization
-        local_parallel_monte_carlo(new_solutions, new_fitness, task, depth, neighbor_list, species, sro, weight);
+        local_parallel_monte_carlo(new_solutions, new_fitness, task, depth, neighbor_list, species, target_sro, weight);
         // Ranking: Calculate the best lattices and update the fitness values
         calculate_best_lattices(lattices, new_solutions, fitness, new_fitness);
         // Local Search II: Perform local parallel Monte Carlo optimization
-        local_parallel_monte_carlo(lattices, fitness, task, depth, neighbor_list, species, sro, weight);
+        local_parallel_monte_carlo(lattices, fitness, task, depth, neighbor_list, species, target_sro, weight);
         // Print the current iteration and best fitness
 
         best_fitness = fitness[0];

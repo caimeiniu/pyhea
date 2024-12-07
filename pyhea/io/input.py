@@ -1,6 +1,8 @@
 import os
 import yaml
 import numpy as np
+from pyhea.utils.device import get_gpu_info
+from pyhea.utils.logger import logger
 
 class input_config:
     """
@@ -136,6 +138,25 @@ class input_config:
         ValueError:
             If any configuration values are invalid.
         """
+        # Validate device configuration
+        device = self.config.get('device', 'cpu').lower()
+        if device not in ['cpu', 'gpu']:
+            raise ValueError(f"Invalid device type '{device}'. Must be either 'cpu' or 'gpu'")
+
+        # Check device availability
+        gpu_info = get_gpu_info()
+        gpu_available = bool(gpu_info)
+        
+        if device == 'gpu' and not gpu_available:
+            logger.warning("GPU device requested but no GPU is available. Falling back to CPU.")
+            self.config['device'] = 'cpu'
+            device = self.config.get('device', 'cpu').lower()
+        device_name = 'CPU' if device == 'cpu' else gpu_info[0]['name']
+        
+        if device == 'cpu' and gpu_available:
+            logger.warning(f"Set CPU device but {gpu_info[0]['name']} GPU is available. Inefficient configuration!!")
+        logger.info(f"Running with device: {device_name}")
+
         # Validate element counts
         total_atoms = sum(self.config.get('element', []))
         cell_volume = np.prod(self.config.get('cell_dim', [1, 1, 1]))
@@ -346,7 +367,7 @@ class input_config:
         default_shell = np.zeros(expected_length)
         default_shells = [default_shell.copy() for _ in range(3)]
         
-        target_sro_file = self.config.get('target_sro', None)
+        target_sro_file = self.config.get('target_sro')
         if target_sro_file is None:
             return np.array([[0.0] * (num_types * num_types)] * 3)
             

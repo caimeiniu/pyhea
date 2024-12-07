@@ -13,6 +13,7 @@ PYBIND11_MODULE(accelerate, m) {
         pybind11::arg("nbor"),
         pybind11::arg("element"),
         pybind11::arg("weight"),
+        pybind11::arg("target_sro"),
         R"pbdoc(
             Run the local parallel hybrid cuckoo search algorithm.
 
@@ -34,8 +35,8 @@ PYBIND11_MODULE(accelerate, m) {
                 A list indicating the number of each type of atom.
             weight : list of float
                 A list of weights used to calculate the weighted error.
-            comm : MPI_Comm
-                The MPI communicator.
+            target_sro : list of float
+                A list of target SRO values for each shell.
 
             Returns
             -------
