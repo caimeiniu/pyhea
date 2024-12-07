@@ -24,8 +24,12 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenmpi-dev openmpi-bin cmake
-        # Install pybind11
+        sudo apt-get install -y \
+          libopenmpi-dev openmpi-bin \
+          libegl1 libegl-dev \
+          libgl1-mesa-dev libgles2-mesa-dev \
+          libglvnd0 libglvnd-dev \
+          libx11-6 libx11-dev
         git clone https://github.com/pybind/pybind11.git
         cd pybind11
         cmake -S . -B build -DPYBIND11_TEST=OFF
@@ -69,7 +73,12 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenmpi-dev openmpi-bin cmake
+        sudo apt-get install -y \
+          libopenmpi-dev openmpi-bin \
+          libegl1 libegl-dev \
+          libgl1-mesa-dev libgles2-mesa-dev \
+          libglvnd0 libglvnd-dev \
+          libx11-6 libx11-dev
         git clone https://github.com/pybind/pybind11.git
         cd pybind11
         cmake -S . -B build -DPYBIND11_TEST=OFF
