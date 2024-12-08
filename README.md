@@ -55,7 +55,7 @@ cd pyhea
 pip install -r requirements.txt
 
 # Install in development mode
-pip install -e .
+pip install .
 ```
 
 ## Quick Start
@@ -75,7 +75,7 @@ cell_dim:                 # Supercell dimensions
   - 40
   - 40
   - 40
-device: cpu               # Computation device (cpu/gpu)
+device: gpu               # Computation device (gpu/gpu)
 solutions: 128            # Number of parallel solutions
 total_iter: 10           # Total optimization iterations
 parallel_task: 256       # Number of parallel MC tasks
@@ -115,19 +115,7 @@ structure = read_structure("output_structure.xyz")
 results = analyze_structure(structure)
 ```
 
-
 ## Advanced Usage
-
-### Custom Fitness Functions
-
-```python
-from pyhea.fitness import BaseFitness
-
-class CustomFitness(BaseFitness):
-    def calculate(self, structure):
-        # Implement your custom fitness calculation
-        pass
-```
 
 ### Structure Analysis
 
@@ -193,7 +181,14 @@ If you use PyHEA in your research, please cite:
    - Verify compiler settings in setup.py
 
 
+## Getting Help
+
+If you need help with PyHEA, you can use the following resources:
+
+- Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
+- Community Forum: [PyHEA Discussions](https://github.com/caimeiniu/pyhea/discussions)
+- Email Support: [support@pyhea.org](mailto:caimeiniu@stu.pku.edu.cn)
+
 ## Contact
 
 - Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
-
