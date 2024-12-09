@@ -99,39 +99,14 @@ mpirun -np 4 pyhea run config.yaml
 pyhea --version
 ```
 
-3. **Analyzing Results**
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-```python
-from pyhea.utils.analyze import analyze_structure
-from pyhea.io.input import read_structure
-
-# Load and analyze structure
-structure = read_structure("output_structure.xyz")
-results = analyze_structure(structure)
-```
-
 ## Advanced Usage
 
 ### Structure Analysis
 
-```python
-from pyhea.utils.analyze import calculate_wcps
-
-# Calculate Warren-Cowley parameters
-wcps = calculate_wcps(structure, max_shell=3)
-=======
-=======
->>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
 # Analyze structure
 ```bash
 pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
 pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
-<<<<<<< HEAD
->>>>>>> 2c3e15e (update README)
-=======
->>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
 ```
 
 ## Contributing
