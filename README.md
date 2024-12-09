@@ -102,6 +102,7 @@ pyhea --version
 3. **Analyzing Results**
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 ```python
 from pyhea.utils.analyze import analyze_structure
 from pyhea.io.input import read_structure
@@ -122,11 +123,16 @@ from pyhea.utils.analyze import calculate_wcps
 # Calculate Warren-Cowley parameters
 wcps = calculate_wcps(structure, max_shell=3)
 =======
+=======
+>>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
 # Analyze structure
 ```bash
 pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
 pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
+<<<<<<< HEAD
 >>>>>>> 2c3e15e (update README)
+=======
+>>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
 ```
 
 ## Contributing
@@ -182,6 +188,14 @@ If you use PyHEA in your research, please cite:
    - Verify compiler settings in setup.py
 
 For more detailed troubleshooting, please visit our [documentation](docs/troubleshooting.md).
+
+## Getting Help
+
+If you need help with PyHEA, you can use the following resources:
+
+- Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
+- Community Forum: [PyHEA Discussions](https://github.com/caimeiniu/pyhea/discussions)
+- Email Support: [support@pyhea.org](mailto:caimeiniu@stu.pku.edu.cn)
 
 ## Getting Help
 
