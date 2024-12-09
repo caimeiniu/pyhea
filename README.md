@@ -1,7 +1,7 @@
 # PyHEA: A Short-Range Order Based High-Performance High-Entropy Alloys Modeling Toolkit
 
 [![License](https://img.shields.io/badge/License-LGPL3.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey)](https://github.com/caimeiniu/pyhea)
 
 PyHEA is a Short-Range Order Based high-performance computational toolkit for modeling and optimizing High Entropy Alloys (HEAs). It provides a comprehensive suite of tools for atomic structure simulation, property prediction, and optimization of multi-component alloy systems.
@@ -28,19 +28,18 @@ PyHEA is a Short-Range Order Based high-performance computational toolkit for mo
 ## Requirements
 
 ### Core Dependencies
-- Python >= 3.7
+- Python >= 3.9
 - NumPy >= 1.19.0
 - SciPy >= 1.7.0
 - PyYAML >= 5.1.0
 - mpi4py >= 3.0.0
 - pybind11 >= 2.6.0
+- Matplotlib >= 3.7.0 (for visualization)
+- dpdata >= 0.2.0 (for data processing)
+- WarrenCowleyParameters >= 2.0.0 (for structure analysis)
 
 ### Optional Dependencies
 - CUDA Toolkit (for GPU acceleration)
-- Matplotlib >= 3.7.0 (for visualization)
-- Seaborn >= 0.12.0 (for advanced plotting)
-- dpdata >= 0.2.0 (for data processing)
-- WarrenCowleyParameters >= 2.0.0 (for structure analysis)
 
 ## Installation
 
@@ -91,21 +90,19 @@ structure: POSCAR_FCC    # Input structure file
 
 ```bash
 # Run simulation with configuration file
-python -m pyhea run config.yaml
+pyhea run config.yaml
 
 # Run with MPI parallel processing
-mpirun -np 4 python -m pyhea run config.yaml
-
-# Analyze structure
-python -m pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
-python -m pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
+mpirun -np 4 pyhea run config.yaml
 
 # Check version
-python -m pyhea --version
+pyhea --version
 ```
 
 3. **Analyzing Results**
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 ```python
 from pyhea.utils.analyze import analyze_structure
 from pyhea.io.input import read_structure
@@ -124,6 +121,17 @@ from pyhea.utils.analyze import calculate_wcps
 
 # Calculate Warren-Cowley parameters
 wcps = calculate_wcps(structure, max_shell=3)
+=======
+=======
+>>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
+# Analyze structure
+```bash
+pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
+pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
+<<<<<<< HEAD
+>>>>>>> 2c3e15e (update README)
+=======
+>>>>>>> 2c3e15e67f322d18d32e8a4673482c236485363f
 ```
 
 ## Contributing
@@ -145,13 +153,11 @@ This project is licensed under the LGPL-3.0 License - see the [LICENSE](LICENSE)
 If you use PyHEA in your research, please cite:
 
 ```bibtex
-@software{pyhea2024,
-  author = {Niu, Caimei},
-  title = {PyHEA: A Short-Range Order Based High-Performance High-Entropy Alloys Model Builder},
-  year = {2024},
-  publisher = {GitHub},
-  url = {https://github.com/caimeiniu/pyhea},
-  note = {Manuscript in preparation.}
+@article{niu2024short,
+  title={Short-Range Order Based Ultra Fast Large-Scale Modeling of High-Entropy Alloys},
+  author={Niu, Caimei and Liu, Lifeng},
+  journal={arXiv preprint arXiv:2411.18906},
+  year={2024}
 }
 ```
 
@@ -180,6 +186,23 @@ If you use PyHEA in your research, please cite:
    - Check Python version compatibility
    - Verify compiler settings in setup.py
 
+For more detailed troubleshooting, please visit our [documentation](docs/troubleshooting.md).
+
+## Getting Help
+
+If you need help with PyHEA, you can use the following resources:
+
+- Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
+- Community Forum: [PyHEA Discussions](https://github.com/caimeiniu/pyhea/discussions)
+- Email Support: [support@pyhea.org](mailto:caimeiniu@stu.pku.edu.cn)
+
+## Getting Help
+
+If you need help with PyHEA, you can use the following resources:
+
+- Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
+- Community Forum: [PyHEA Discussions](https://github.com/caimeiniu/pyhea/discussions)
+- Email Support: [support@pyhea.org](mailto:caimeiniu@stu.pku.edu.cn)
 
 ## Getting Help
 
