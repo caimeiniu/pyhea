@@ -66,15 +66,15 @@ Create a configuration file `config.yaml`:
 ```yaml
 type: 4                    # Number of element types
 element:                   # Number of atoms per element
-  - 64000
-  - 64000
-  - 64000
-  - 64000
+  - 1000
+  - 1000
+  - 1000
+  - 1000
 cell_dim:                 # Supercell dimensions
-  - 40
-  - 40
-  - 40
-device: gpu               # Computation device (gpu/gpu)
+  - 10
+  - 10
+  - 10
+device: cpu               # Computation device (cpu/gpu)
 solutions: 128            # Number of parallel solutions
 total_iter: 10           # Total optimization iterations
 parallel_task: 256       # Number of parallel MC tasks
