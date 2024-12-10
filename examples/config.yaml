@@ -1,0 +1,21 @@
+type: 4                    # Number of element types
+element:                   # Number of atoms per element
+  - 1000
+  - 1000
+  - 1000
+  - 1000
+cell_dim:                 # Supercell dimensions
+  - 10
+  - 10
+  - 10
+device: cpu               # Computation device (cpu/gpu)
+solutions: 128            # Number of parallel solutions
+total_iter: 10           # Total optimization iterations
+parallel_task: 256       # Number of parallel MC tasks
+converge_depth: 10       # Convergence criterion
+weight:                  # Shell weights for fitness
+  - 4.0
+  - 1.0
+  - 0.5
+structure: POSCAR_FCC    # Input structure file
+
