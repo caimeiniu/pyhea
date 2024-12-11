@@ -83,6 +83,7 @@ weight:                  # Shell weights for fitness
   - 4.0
   - 1.0
   - 0.5
+target_sro: TARGET_SRO   # Path to the target SRO file
 structure: POSCAR_FCC    # Input structure file
 ```
 
