@@ -106,8 +106,8 @@ pyhea --version
 
 # Analyze structure
 ```bash
-pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr
-pyhea analyze POSCAR --format poscar --lattice-type BCC --elements Al Ti V
+pyhea analyze structure.lmp --format lmp --lattice-type FCC --elements Fe Ni Cr Co
+
 ```
 
 ## Contributing
