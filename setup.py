@@ -5,7 +5,7 @@ This module configures the build process for the PyHEA package, handling both
 CPU and CUDA extensions through CMake. It automatically detects CUDA availability
 and adjusts the build accordingly.
 
-Author: Charmy Niu
+Author: Caimei Niu
 """
 
 from setuptools import setup, find_packages, Extension
