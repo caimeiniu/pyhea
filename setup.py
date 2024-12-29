@@ -154,9 +154,9 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: C++",
         "Programming Language :: CUDA",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: LGPL-3.0 License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Physics",
-        "Topic :: Scientific/Engineering :: Chemistry",
+        "Topic :: Scientific/Engineering :: Materials",
     ],
 )
