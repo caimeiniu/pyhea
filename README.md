@@ -130,11 +130,14 @@ This project is licensed under the LGPL-3.0 License - see the [LICENSE](LICENSE)
 If you use PyHEA in your research, please cite:
 
 ```bibtex
-@article{niu2024short,
-  title={Short-Range Order Based Ultra Fast Large-Scale Modeling of High-Entropy Alloys},
+@article{niu2025short,
+  title={Short-range order based ultra fast large-scale modeling of high-entropy alloys},
   author={Niu, Caimei and Liu, Lifeng},
-  journal={arXiv preprint arXiv:2411.18906},
-  year={2024}
+  journal={Computational Materials Science},
+  volume={253},
+  pages={113792},
+  year={2025},
+  publisher={Elsevier}
 }
 ```
 
