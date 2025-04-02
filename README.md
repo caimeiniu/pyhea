@@ -174,7 +174,7 @@ If you need help with PyHEA, you can use the following resources:
 
 - Issue Tracker: [GitHub Issues](https://github.com/caimeiniu/pyhea/issues)
 - Community Forum: [PyHEA Discussions](https://github.com/caimeiniu/pyhea/discussions)
-- Email Support: [support@pyhea.org](mailto:caimeiniu@stu.pku.edu.cn)
+- Email Support: caimeiniu@stu.pku.edu.cn
 
 ## Contact
 
